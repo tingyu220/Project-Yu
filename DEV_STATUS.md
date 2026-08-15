@@ -10,7 +10,7 @@ v0.0.2.1 — Authority & Safety Kernel（已完成）
 
 ## Status
 
-PASS（自动化验证通过：pytest 47 passed + CLI 安全命令冒烟验证通过；真实 LLM 调用仍待用户配置 DEEPSEEK_API_KEY）
+PASS（自动化验证通过：pytest 47 passed + CLI 安全命令冒烟验证通过；真实 LLM 对话已由用户实际验证通过）
 
 ## Original Goal
 
@@ -132,13 +132,12 @@ audit.disable 拒绝 / 修改宪法拒绝 / 未知 Action 拒绝 / 权限引擎�
 
 ## Known Issues
 
-1. 真实 LLM 端到端调用仍未验证（环境未配置 DEEPSEEK_API_KEY）。
-2. 运行时 grant/revoke 的权限变更暂存内存，跨重启不持久（待未来管理界面 / 真实需求再实现）。
-3. 审计存储使用独立 data/audit.db；未来若需与事件日志统一，需评估迁移。
+1. 运行时 grant/revoke 的权限变更暂存内存，跨重启不持久（待未来管理界面 / 真实需求再实现）。
+2. 审计存储使用独立 data/audit.db；未来若需与事件日志统一，需评估迁移。
 
 ## User Experience
 
-（待用户实际使用后填写）
+已由用户实际使用：配置 DEEPSEEK_API_KEY 后完成真实对话，LLM 对话功能正常；真实会话的 Shutdown 已被审计日志正确记录（审计系统在真实使用中生效）。
 
 ## Next Recommendation
 
