@@ -1,4 +1,4 @@
-"""Command-line interface for Yu (v0.0.3: Memory Retrieval).
+"""Command-line interface for Yu (v0.0.4: Goals / Tasks / Decisions / Projects).
 
 Usage:
     python -m yu.cli
@@ -6,6 +6,10 @@ Usage:
 Commands:
     记住：<内容>   记录一条事实（同时创建 Event 与 Memory）
     记忆           列出所有有效记忆
+    目标：<标题>   新建目标；目标 列出目标；完成目标 <id>
+    任务：<标题>   新建任务；任务 列出任务；完成任务 <id>
+    项目：<名称>   新建项目；项目 列出项目
+    决策：<内容>   记录决策；决策 列出决策
     权限           查看当前 Permission
     安全状态       查看 Safety Kernel 状态
     审计           查看最近安全审计事件
@@ -22,6 +26,7 @@ from . import __version__
 from .audit.store import AuditStore
 from .authority.owner import OwnerManager
 from .authority.shutdown import ShutdownController
+from .entities.store import EntitiesStore
 from .llm import ChatMessage, Conversation, LLMError, create_provider
 from .memory.retrieval import build_context
 from .memory.store import MemoryStore
@@ -53,6 +58,7 @@ def main(argv: list[str] | None = None) -> int:
     _print_banner()
 
     store = MemoryStore(DEFAULT_DB_PATH)
+    entities = EntitiesStore(DEFAULT_DB_PATH)
     audit = AuditStore(DEFAULT_AUDIT_DB)
     owner = OwnerManager(DEFAULT_OWNER_PATH)
     constitution = SafetyConstitution(DEFAULT_CONSTITUTION_PATH)
@@ -87,12 +93,33 @@ def main(argv: list[str] | None = None) -> int:
                 _show_safety_status(kernel)
             elif command == "审计":
                 _show_audit(audit)
+            elif command == "目标":
+                _show_goals(entities)
+            elif command.startswith("目标："):
+                _add_goal(entities, command[len("目标："):].strip())
+            elif command.startswith("完成目标 "):
+                _complete_goal(entities, command[len("完成目标 "):].strip())
+            elif command == "任务":
+                _show_tasks(entities)
+            elif command.startswith("任务："):
+                _add_task(entities, command[len("任务："):].strip())
+            elif command.startswith("完成任务 "):
+                _complete_task(entities, command[len("完成任务 "):].strip())
+            elif command == "项目":
+                _show_projects(entities)
+            elif command.startswith("项目："):
+                _add_project(entities, command[len("项目："):].strip())
+            elif command == "决策":
+                _show_decisions(entities)
+            elif command.startswith("决策："):
+                _add_decision(entities, command[len("决策："):].strip())
             elif command.startswith("记住："):
                 _record(store, command[len("记住："):].strip())
             else:
                 _chat(store, provider, conversation, command)
     finally:
         store.close()
+        entities.close()
         audit.close()
     return 0
 
@@ -168,6 +195,107 @@ def _show_audit(audit: AuditStore, limit: int = 10) -> None:
         risk = e.risk_level or "-"
         decision = e.decision or "-"
         print(f"[{e.id}] {e.timestamp} {e.event_type} actor={e.actor} risk={risk} decision={decision} reason={e.reason}")
+
+
+def _add_goal(entities: EntitiesStore, title: str) -> None:
+    if not title:
+        print("内容为空，未记录。")
+        return
+    goal = entities.add_goal(title)
+    print("已记录目标。")
+    print(f"Goal ID: {goal.id}")
+
+
+def _show_goals(entities: EntitiesStore) -> None:
+    goals = entities.list_goals()
+    if not goals:
+        print("（暂无目标）")
+        return
+    for g in goals:
+        print(f"[{g.id}] ({g.status}) {g.title}")
+
+
+def _complete_goal(entities: EntitiesStore, goal_id_str: str) -> None:
+    try:
+        goal_id = int(goal_id_str)
+    except ValueError:
+        print("目标 ID 无效。")
+        return
+    goal = entities.update_goal_status(goal_id, "completed")
+    if goal is None:
+        print("目标不存在。")
+    else:
+        print(f"目标 [{goal.id}] 已标记为 completed。")
+
+
+def _add_task(entities: EntitiesStore, title: str) -> None:
+    if not title:
+        print("内容为空，未记录。")
+        return
+    task = entities.add_task(title)
+    print("已记录任务。")
+    print(f"Task ID: {task.id}")
+
+
+def _show_tasks(entities: EntitiesStore) -> None:
+    tasks = entities.list_tasks()
+    if not tasks:
+        print("（暂无任务）")
+        return
+    for t in tasks:
+        print(f"[{t.id}] ({t.status}/{t.priority}) {t.title}")
+
+
+def _complete_task(entities: EntitiesStore, task_id_str: str) -> None:
+    try:
+        task_id = int(task_id_str)
+    except ValueError:
+        print("任务 ID 无效。")
+        return
+    task = entities.update_task_status(task_id, "done")
+    if task is None:
+        print("任务不存在。")
+    else:
+        print(f"任务 [{task.id}] 已标记为 done。")
+
+
+def _add_project(entities: EntitiesStore, name: str) -> None:
+    if not name:
+        print("内容为空，未记录。")
+        return
+    project = entities.add_project(name)
+    print("已记录项目。")
+    print(f"Project ID: {project.id}")
+
+
+def _show_projects(entities: EntitiesStore) -> None:
+    projects = entities.list_projects()
+    if not projects:
+        print("（暂无项目）")
+        return
+    for p in projects:
+        step = f" | 下一步：{p.next_step}" if p.next_step else ""
+        print(f"[{p.id}] ({p.status}) {p.name}{step}")
+
+
+def _add_decision(entities: EntitiesStore, decision: str) -> None:
+    if not decision:
+        print("内容为空，未记录。")
+        return
+    d = entities.add_decision(decision)
+    print("已记录决策。")
+    print(f"Decision ID: {d.id}")
+
+
+def _show_decisions(entities: EntitiesStore) -> None:
+    decisions = entities.list_decisions()
+    if not decisions:
+        print("（暂无决策）")
+        return
+    for d in decisions:
+        print(f"[{d.id}] {d.decision}")
+        if d.reason:
+            print(f"    理由：{d.reason}")
 
 
 if __name__ == "__main__":

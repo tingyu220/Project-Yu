@@ -159,3 +159,13 @@ DeepSeek 调用默认 temperature=0.3（可用 DEEPSEEK_TEMPERATURE 覆盖）。
 
 Reason:
 记忆检索场景要求回答忠实于检索到的记忆、避免编造；较低温度显著提升一致性与反幻觉能力。
+
+---
+
+## D017 — 结构化实体与 Memory 共用同一 SQLite 文件
+
+Decision:
+Goal / Task / Decision / Project 持久化于同一个 data/yu.db（新增独立表），不新建独立数据库文件。
+
+Reason:
+本地优先、单用户；同一数据库便于未来的 Planner（Phase 5）跨表关联目标 / 任务 / 记忆。
