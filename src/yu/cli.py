@@ -1,4 +1,4 @@
-"""Command-line interface for Yu (v0.0.4: Goals / Tasks / Decisions / Projects).
+"""Command-line interface for Yu (v0.0.5: Daily Planner).
 
 Usage:
     python -m yu.cli
@@ -10,6 +10,7 @@ Commands:
     任务：<标题>   新建任务；任务 列出任务；完成任务 <id>
     项目：<名称>   新建项目；项目 列出项目
     决策：<内容>   记录决策；决策 列出决策
+    规划           生成今日计划（也可直接问「我今天应该干什么」）
     权限           查看当前 Permission
     安全状态       查看 Safety Kernel 状态
     审计           查看最近安全审计事件
@@ -30,6 +31,7 @@ from .entities.store import EntitiesStore
 from .llm import ChatMessage, Conversation, LLMError, create_provider
 from .memory.retrieval import build_context
 from .memory.store import MemoryStore
+from .planner import build_plan, is_plan_request
 from .safety.constitution import SafetyConstitution
 from .safety.kernel import SafetyKernel
 from .safety.permissions import PermissionEngine
@@ -113,10 +115,15 @@ def main(argv: list[str] | None = None) -> int:
                 _show_decisions(entities)
             elif command.startswith("决策："):
                 _add_decision(entities, command[len("决策："):].strip())
+            elif command in ("规划", "今日计划", "计划"):
+                _plan(store, entities, provider)
             elif command.startswith("记住："):
                 _record(store, command[len("记住："):].strip())
             else:
-                _chat(store, provider, conversation, command)
+                if is_plan_request(command):
+                    _plan(store, entities, provider)
+                else:
+                    _chat(store, provider, conversation, command)
     finally:
         store.close()
         entities.close()
@@ -129,7 +136,7 @@ def _build_provider():
         return create_provider()
     except LLMError as e:
         print(f"[警告] {e}")
-        print("未配置 LLM，本轮仅支持本地命令（记住：/ 记忆 / 权限 / 安全状态 / 审计 / 重置 / exit）。")
+        print("未配置 LLM，本轮仅支持本地命令（记住：/ 记忆 / 目标 / 任务 / 项目 / 决策 / 权限 / 安全状态 / 审计 / 重置 / exit）。")
         return None
 
 
@@ -152,6 +159,21 @@ def _chat(store: MemoryStore, provider, conversation: Conversation, text: str) -
     conversation.add_user(text)
     conversation.add_assistant(reply.content)
     print(reply.content)
+
+
+def _plan(store: MemoryStore, entities: EntitiesStore, provider) -> None:
+    if provider is None:
+        print("未配置 LLM Provider（缺少 DEEPSEEK_API_KEY），无法规划。")
+        return
+    if not entities.list_goals() and not entities.list_tasks() and not entities.list_projects():
+        print("暂无目标 / 任务 / 项目。请先用 目标：/ 任务：/ 项目： 记录一些，再让我规划。")
+        return
+    try:
+        plan = build_plan(store, entities, provider)
+    except LLMError as e:
+        print(f"[错误] {e}")
+        return
+    print(plan)
 
 
 def _record(store: MemoryStore, content: str) -> None:

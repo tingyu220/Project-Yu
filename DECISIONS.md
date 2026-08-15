@@ -169,3 +169,13 @@ Goal / Task / Decision / Project 持久化于同一个 data/yu.db（新增独立
 
 Reason:
 本地优先、单用户；同一数据库便于未来的 Planner（Phase 5）跨表关联目标 / 任务 / 记忆。
+
+---
+
+## D018 — Planner 第一版暂不含 Yesterday Status
+
+Decision:
+Phase 5 Daily Planner 的输入暂不含「Yesterday Status」（即前一天的 Daily Summary）。
+
+Reason:
+Daily Summary 在 Phase 6 才实现；按版本顺序推进，Phase 6 完成后再让 Planner 读取前一天的 Summary。

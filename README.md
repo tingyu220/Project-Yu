@@ -56,6 +56,6 @@ Yu v0.0.2.1 建立独立于 LLM 的控制层（Control Plane）：Owner 身份�
 python -m yu.cli
 ```
 
-本地命令：记住：/ 记忆 / 目标 / 任务 / 项目 / 决策 / 权限 / 安全状态 / 审计 / 重置 / exit（或 关闭Yu）。对话功能需要设置环境变量 `DEEPSEEK_API_KEY`；可选 `DEEPSEEK_MODEL`（默认 deepseek-chat）、`DEEPSEEK_BASE_URL`、`YU_LLM_PROVIDER`（默认 deepseek）。对话时会自动检索相关长期记忆并注入上下文（v0.0.3）。可选 DEEPSEEK_TEMPERATURE（默认 0.3，越低越忠实于记忆、越少编造）。未设置 Key 时仅本地命令可用。
+本地命令：记住：/ 记忆 / 目标 / 任务 / 项目 / 决策 / 规划 / 权限 / 安全状态 / 审计 / 重置 / exit（或 关闭Yu）。对话功能需要设置环境变量 `DEEPSEEK_API_KEY`；可选 `DEEPSEEK_MODEL`（默认 deepseek-chat）、`DEEPSEEK_BASE_URL`、`YU_LLM_PROVIDER`（默认 deepseek）。对话时会自动检索相关长期记忆并注入上下文（v0.0.3）。可选 DEEPSEEK_TEMPERATURE（默认 0.3，越低越忠实于记忆、越少编造）。未设置 Key 时仅本地命令可用。
 
 详见 `DEV_STATUS.md`（当前进度）、`DECISIONS.md`（架构决策）、`RESEARCH_BACKLOG.md`（未来方向）。
