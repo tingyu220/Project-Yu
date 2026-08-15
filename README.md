@@ -48,4 +48,6 @@ Python · SQLite · pytest · psutil · PySide6 · Git · GitHub · LLM Provider
 python -m yu.cli
 ```
 
+对话功能需要设置环境变量 `DEEPSEEK_API_KEY`；可选 `DEEPSEEK_MODEL`（默认 deepseek-chat）、`DEEPSEEK_BASE_URL`、`YU_LLM_PROVIDER`（默认 deepseek）。未设置 Key 时仅记忆命令可用。
+
 详见 `DEV_STATUS.md`（当前进度）、`DECISIONS.md`（架构决策）、`RESEARCH_BACKLOG.md`（未来方向）。

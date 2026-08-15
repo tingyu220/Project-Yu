@@ -39,3 +39,23 @@ Decision:
 
 Reason:
 将「Append Only」从代码约定升级为数据库约束，防止任何绕过 Python API 的路径破坏历史事件，保证 D003 的可靠性。
+
+---
+
+## D005 — LLM Provider 抽象
+
+Decision:
+Yu 的业务层只依赖统一的 LLMProvider 接口，通过工厂 create_provider 按名称选择具体模型；首个实现为 DeepSeekProvider。
+
+Reason:
+保证「模型可以替换，Yu 不随模型一起更换」，未来可加入 OpenAIProvider / LocalProvider 等而不改动业务层。
+
+---
+
+## D006 — Phase 2 使用标准库 urllib 做 HTTP
+
+Decision:
+Phase 2 的 LLM 调用使用 Python 标准库 urllib.request，不引入 requests / httpx 等第三方 HTTP 依赖。
+
+Reason:
+保持依赖最小化（Small Steps），当前仅需非流式 JSON POST；未来如有流式 / 重试等真实需求再评估引入。
