@@ -19,3 +19,8 @@ env/
 data/*.db
 data/*.sqlite
 data/*.sqlite3
+
+# Node / Yu Web
+node_modules/
+*.log
+.DS_Store

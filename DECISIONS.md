@@ -189,3 +189,26 @@ Phase 7 起，默认授权 system.status.read（R0 只读），用于读取电�
 
 Reason:
 按「能力逐步增加」原则，Owner 通过开发 Phase 7 显式授权这一只读能力；写入 / 操作类能力仍 Default Deny。
+
+---
+
+## D020 — Yu Web 是 Interface Layer（Yu API + apps/web）
+
+Decision:
+Yu Web 不是独立产品，而是 Yu 的一个 Interface。apps/web 只能通过 src/yu/api（FastAPI）使用 Yu 能力；
+不能直接读 SQLite / 内部 Python 文件 / 配置文件；Frontend 不直接调用 DeepSeek，Chat 必须经由
+Yu Core -> LLM Provider -> DeepSeek；system.status.read 等能力仍经 Safety Kernel 评估。
+
+Reason:
+保持「模型可替换、Yu 不随模型更换」与「能力增长不等于权限增长」；Web 永远不能成为绕过 Safety Kernel 的后门。
+
+---
+
+## D021 — Memory Universe v0.0.8 用 2D Canvas + CSS（暂缓 Three.js）
+
+Decision:
+Memory Universe 与 AI Core 的视觉第一版使用 2D Canvas 力布局 + CSS/Motion 动画，暂不引入 Three.js。
+
+Reason:
+轻薄本性能预算 + prefers-reduced-motion 要求 + 需保证清晰稳定流畅；确有需要时再以「视觉增强组件」
+身份引入 Three.js，并实现 renderer/buffer 的 dispose 与离开页面时的资源释放。

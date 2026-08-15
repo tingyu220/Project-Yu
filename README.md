@@ -58,4 +58,33 @@ python -m yu.cli
 
 本地命令：记住：/ 记忆 / 目标 / 任务 / 项目 / 决策 / 规划 / 总结 / 日报 / 电脑状态 / 权限 / 安全状态 / 审计 / 重置 / exit（或 关闭Yu）。对话功能需要设置环境变量 `DEEPSEEK_API_KEY`；可选 `DEEPSEEK_MODEL`（默认 deepseek-chat）、`DEEPSEEK_BASE_URL`、`YU_LLM_PROVIDER`（默认 deepseek）。对话时会自动检索相关长期记忆并注入上下文（v0.0.3）。可选 DEEPSEEK_TEMPERATURE（默认 0.3，越低越忠实于记忆、越少编造）。未设置 Key 时仅本地命令可用。
 
+## Yu Web（v0.0.8 Web Experience）
+
+Yu Web 是 Yu 的「身体」与交互入口（Interface Layer），不是另一个 Yu。两个页面：
+
+- `/` Life Cockpit —— 今天最重要的一件事 + 概览 + Ask Yu（对话 / 规划 / 电脑状态）。
+- `/memory` Memory Universe —— 长期记忆的可视化星座（2D Canvas：话题聚类 / 缩放 / 平移 / 选中）。
+
+架构：Browser → Yu Web（React + Vite）→ HTTP → Yu API（FastAPI）→ Yu Core → LLM Provider → DeepSeek。
+apps/web 只能通过 Yu API 使用 Yu 能力；Frontend 不直接调用 DeepSeek；API 不绕过 Safety Kernel。
+
+运行（先安装 API 依赖）：
+
+```bash
+pip install -e ".[api]"     # 或 pip install fastapi uvicorn
+python -m yu.api            # 启动 Yu API（默认 http://127.0.0.1:8787）
+```
+
+前端（开发）：
+
+```bash
+cd apps/web
+npm install
+npm run dev                 # http://localhost:5173（自动代理 /api）
+```
+
+前端（生产，单进程）：`npm run build` 后，`python -m yu.api` 会同时托管 API 与构建产物。
+
+演示 / 隐私：导航栏切换「Private / Demo」，或访问 `/?demo=true`（隐藏私人记忆内容，适合录屏）。
+
 详见 `DEV_STATUS.md`（当前进度）、`DECISIONS.md`（架构决策）、`RESEARCH_BACKLOG.md`（未来方向）。
