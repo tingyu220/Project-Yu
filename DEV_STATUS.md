@@ -2,30 +2,28 @@
 
 ## Version
 
-Yu v0.0.5
+Yu v0.0.6
 
 ## Current Phase
 
-Phase 5 — Daily Planner（已完成）
+Phase 6 — Daily Summary（已完成）
 
 ## Status
 
-PASS（自动化验证通过：pytest 72 passed + 真实 LLM 规划冒烟验证通过）
+PASS（自动化验证通过：pytest 79 passed + 真实 LLM 总结冒烟验证通过）
 
 ## Original Goal
 
-让 Yu 第一次真正参与用户每天的决策：结合 Goals / Tasks / Projects / Recent Memories，
-生成「今天最值得做的事」，并说明理由。
+让 Yu 每一天都有一个清晰的状态快照（今日计划 / 实际完成 / 未完成 / 新增记忆 /
+重要决策 / 问题 / 项目状态 / 明天建议），并持久化以便次日恢复 Context。
 
 ## Implemented
 
-1. Planner 模块（planner.py）：Priority Decision System（非 Todo 生成器）
-2. 上下文汇总（gather_context）：目标 + 任务 + 项目 + 近期记忆
-3. 规划原则注入（PLANNER_SYSTEM_PROMPT）：完成优先 / 最多 3 个核心任务 / 现实可完成 /
-   长期目标优先 / 显式处理拖延 / 说明理由 / 明确「今天不要做什么」
-4. 自然语言识别（is_plan_request）：检测「我今天应该干什么」等规划请求
-5. CLI 新增 规划 / 今日计划 / 计划 命令，并把自然语言规划请求路由到 Planner
-6. pytest 测试扩展至 72 项（planner 5 + 实体 9 + 检索 11 + 安全 20 + LLM 15 + 记忆 12）
+1. Daily Log 持久化（daily.py：DailyLogStore，daily_logs 表，按日期唯一、重复保存覆盖）
+2. 当天数据汇总（gather_daily_data）：目标 + 已完成/未完成任务 + 项目 + 决策 + 近期记忆
+3. Daily Summary 生成（build_daily_summary）：注入格式模板与「只使用提供的数据、不要编造」
+4. CLI 新增 总结（生成并保存今日 Summary）/ 日报（列出已保存的 Summary）
+5. pytest 测试扩展至 79 项（daily 7 + planner 5 + 实体 9 + 检索 11 + 安全 20 + LLM 15 + 记忆 12）
 
 ## Actual Behavior
 
@@ -35,36 +33,47 @@ Input:
 > 目标：学习 AI
 > 任务：完成 pytest 测试
 > 项目：Yu
-> 记住：用户希望长期向 AI 相关职业方向发展。
-> 我今天应该干什么？
+> 决策：Yu V0.1 只开发 Windows PC
+> 记住：用户正在开发 Yu。
+> 完成任务 1
+> 总结
 
-Output（要点）:
-> 今天最重要的一件事：完成 pytest 测试（任务列表中唯一的具体任务）。
-> 第二优先级：为「学习 AI」这个长期目标投入至少 30 分钟……
-> 可选任务：整理 Yu 项目下一步 / 浏览一篇 AI 文章……
-> 今天不要做什么：不要开启新的课程或新项目……
-> 原因：1. 完成优先于开启 … 2. 长期目标需要每日微投入 … 3. 避免拖延陷阱 …
+Output:
+> Date: 2026-08-15
+> 今日计划：学习 AI
+> 实际完成：完成 pytest 测试
+> 未完成：学习 AI（无具体学习任务记录）
+> 新增记忆：用户正在开发 Yu
+> 重要决策：Yu V0.1 只开发 Windows PC
+> 遇到的问题：无
+> 当前项目状态：Yu（active）—— 已完成 pytest 测试，处于开发推进中
+> 明天建议：为「学习 AI」设定具体学习内容……继续推进 Yu 下一步开发……
 
-（Planner 正确识别自然语言请求，结合目标/任务/项目/记忆生成结构化计划，并说明理由）
+Input:
+> 日报
+
+Output:
+> [2026-08-15] Date: 2026-08-15
+
+（总结正确区分「实际完成」与「未完成」，识别新增记忆与决策，并持久化；日报可列出）
 
 ## Tests
 
-pytest: 72 passed, 0 failed
+pytest: 79 passed, 0 failed
 
-覆盖：is_plan_request 识别、gather_context 汇总、build_plan 注入原则与数据、规划原则完整性。
+覆盖：today_date 格式、gather_daily_data 汇总、build_daily_summary 注入、DailyLog 保存/读取/upsert/持久化。
 
 ## Files Added
 
-- src/yu/planner.py
-- tests/test_planner.py
+- src/yu/daily.py
+- tests/test_daily.py
 
 ## Files Modified
 
-- src/yu/cli.py（新增 规划 命令 + 自然语言规划识别 + _plan 函数）
-- src/yu/__init__.py（版本号 0.0.4 → 0.0.5）
-- pyproject.toml（版本号 0.0.4 → 0.0.5）
-- DECISIONS.md（新增 D018）
-- README.md（本地命令补充 规划）
+- src/yu/cli.py（新增 总结 / 日报 命令与处理函数）
+- src/yu/__init__.py（版本号 0.0.5 → 0.0.6）
+- pyproject.toml（版本号 0.0.5 → 0.0.6）
+- README.md（本地命令补充 总结 / 日报）
 
 ## Files Deleted
 
@@ -72,7 +81,8 @@ pytest: 72 passed, 0 failed
 
 ## Database Changes
 
-无。
+新增（data/yu.db）：
+- daily_logs 表（id / date[UNIQUE] / content / created_at / updated_at）
 
 ## 新增依赖
 
@@ -80,11 +90,11 @@ pytest: 72 passed, 0 failed
 
 ## Architecture Deviations
 
-D018：Planner 第一版输入暂不含「Yesterday Status」（前一天 Daily Summary），因 Daily Summary 在 Phase 6 才实现；Phase 6 完成后再接入。
+无。实现与原设计一致：Daily Summary 是派生快照，不替代原始 Event（原始事件仍永久保留）。
 
 ## Known Issues
 
-1. 自然语言规划识别基于简单关键词（今天 + 干什么/做什么/该做/计划/规划），可能误判或漏判；后续可扩展为更稳健的意图识别。
+1. 「今日计划」字段依赖 LLM 根据当前未完成任务/目标推断（Phase 5 的规划结果未持久化，无法直接引用当天计划）；若需精确还原当天计划，可考虑在 Phase 5 持久化规划结果。
 
 ## User Experience
 
@@ -92,8 +102,7 @@ D018：Planner 第一版输入暂不含「Yesterday Status」（前一天 Daily 
 
 ## Next Recommendation
 
-进入 Phase 6 — Daily Summary（Yu v0.0.6）：让 Yu 每一天都有一个清晰的状态快照
-（今日计划 / 实际完成 / 未完成 / 新增记忆 / 重要决策 / 问题 / 项目状态 / 明天建议），
-并作为次日恢复 Context 的基础。
+进入 Phase 7 — Computer Context（Yu v0.0.7）：让 Yu 拥有有限的「环境感知能力」——
+通过 psutil 读取 CPU / 内存 / 磁盘 / 电池 / 进程等状态，并基于状态给出建议（当前只允许读取，禁止操作）。
 
 注意：此处仅为建议，开发工具不得自动进入下一阶段，需用户确认。

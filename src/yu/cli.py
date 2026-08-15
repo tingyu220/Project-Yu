@@ -1,4 +1,4 @@
-"""Command-line interface for Yu (v0.0.5: Daily Planner).
+"""Command-line interface for Yu (v0.0.6: Daily Summary).
 
 Usage:
     python -m yu.cli
@@ -11,6 +11,8 @@ Commands:
     项目：<名称>   新建项目；项目 列出项目
     决策：<内容>   记录决策；决策 列出决策
     规划           生成今日计划（也可直接问「我今天应该干什么」）
+    总结           生成并保存今日 Daily Summary
+    日报           列出已保存的 Daily Summary
     权限           查看当前 Permission
     安全状态       查看 Safety Kernel 状态
     审计           查看最近安全审计事件
@@ -27,6 +29,7 @@ from . import __version__
 from .audit.store import AuditStore
 from .authority.owner import OwnerManager
 from .authority.shutdown import ShutdownController
+from .daily import DailyLogStore, build_daily_summary, today_date
 from .entities.store import EntitiesStore
 from .llm import ChatMessage, Conversation, LLMError, create_provider
 from .memory.retrieval import build_context
@@ -61,6 +64,7 @@ def main(argv: list[str] | None = None) -> int:
 
     store = MemoryStore(DEFAULT_DB_PATH)
     entities = EntitiesStore(DEFAULT_DB_PATH)
+    daily = DailyLogStore(DEFAULT_DB_PATH)
     audit = AuditStore(DEFAULT_AUDIT_DB)
     owner = OwnerManager(DEFAULT_OWNER_PATH)
     constitution = SafetyConstitution(DEFAULT_CONSTITUTION_PATH)
@@ -117,6 +121,10 @@ def main(argv: list[str] | None = None) -> int:
                 _add_decision(entities, command[len("决策："):].strip())
             elif command in ("规划", "今日计划", "计划"):
                 _plan(store, entities, provider)
+            elif command == "总结":
+                _do_summary(store, entities, daily, provider)
+            elif command == "日报":
+                _show_daily_logs(daily)
             elif command.startswith("记住："):
                 _record(store, command[len("记住："):].strip())
             else:
@@ -127,6 +135,7 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         store.close()
         entities.close()
+        daily.close()
         audit.close()
     return 0
 
@@ -174,6 +183,29 @@ def _plan(store: MemoryStore, entities: EntitiesStore, provider) -> None:
         print(f"[错误] {e}")
         return
     print(plan)
+
+
+def _do_summary(store: MemoryStore, entities: EntitiesStore, daily: DailyLogStore, provider) -> None:
+    if provider is None:
+        print("未配置 LLM Provider（缺少 DEEPSEEK_API_KEY），无法总结。")
+        return
+    try:
+        summary = build_daily_summary(store, entities, provider)
+    except LLMError as e:
+        print(f"[错误] {e}")
+        return
+    daily.save(today_date(), summary)
+    print(summary)
+
+
+def _show_daily_logs(daily: DailyLogStore) -> None:
+    logs = daily.list_logs()
+    if not logs:
+        print("（暂无日报）")
+        return
+    for lg in logs:
+        first = lg.content.splitlines()[0] if lg.content else ""
+        print(f"[{lg.date}] {first}")
 
 
 def _record(store: MemoryStore, content: str) -> None:
