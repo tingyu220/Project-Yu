@@ -1,42 +1,33 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useReducedMotion } from "../lib/useReducedMotion";
+import type { NodeHint, YuUIState } from "../lib/types";
 
-export type CoreState =
-  | "idle"
-  | "listening"
-  | "thinking"
-  | "remembering"
-  | "answering"
-  | "error";
-
-export interface NodeHint {
-  id: number;
-  label: string;
-}
-
-const CAPTIONS: Record<CoreState, string> = {
-  idle: "IDLE",
-  listening: "LISTENING",
+const CAPTIONS: Record<YuUIState, string> = {
+  idle: "READY",
   thinking: "THINKING",
   remembering: "REMEMBERING",
+  planning: "PLANNING",
+  system_analysis: "ANALYZING",
   answering: "ANSWERING",
+  ready: "READY",
   error: "ERROR",
 };
 
 const NODE_RADIUS = 76;
 
 interface CoreProps {
-  state: CoreState;
+  state: YuUIState;
   nodes?: NodeHint[];
+  compact?: boolean;
 }
 
-export default function Core({ state, nodes = [] }: CoreProps) {
+export default function Core({ state, nodes = [], compact = false }: CoreProps) {
   const reduced = useReducedMotion();
   const showNodes = state === "remembering" && nodes.length > 0 && !reduced;
   const count = Math.min(nodes.length, 7);
 
   return (
-    <div className={"core core--" + state} aria-hidden="true">
+    <div className={"core" + (compact ? " core--compact" : "") + " core--" + state} aria-hidden="true">
       <div className="core__halo" />
       <div className="core__ring" />
       <div className="core__disc">

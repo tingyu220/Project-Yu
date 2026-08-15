@@ -119,3 +119,32 @@ export interface HistoryMessage {
   role: string;
   content: string;
 }
+
+// ------------------------------------------------------------------ Cockpit UI
+
+/** Yu 的交互状态（驱动 Core 与 Cockpit 状态可视化）。 */
+export type YuUIState =
+  | "idle"
+  | "thinking"
+  | "remembering"
+  | "planning"
+  | "system_analysis"
+  | "answering"
+  | "ready"
+  | "error";
+
+/** 记住（remembering）状态下向 Core 聚合的节点提示。 */
+export interface NodeHint {
+  id: number;
+  label: string;
+}
+
+/** 一条对话消息（user / yu）。 */
+export interface Message {
+  id: string;
+  role: "user" | "yu";
+  content: string;
+  kind?: ChatKind;
+  retrieved?: RetrievalMatch[];
+  createdAt: number;
+}
