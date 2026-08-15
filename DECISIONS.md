@@ -139,3 +139,23 @@ Safety Constitution 与 Owner 身份使用 YAML 格式（config/*.yaml），引�
 
 Reason:
 YAML 对人类更易读易编辑，适合作为 Owner 直接审阅的安全文档；本阶段新增的唯一第三方依赖。
+
+---
+
+## D015 — Memory Retrieval 第一版用关键词
+
+Decision:
+第一版记忆检索使用「关键词（ASCII 词 + 中文二元组）+ importance + 时间」的简单排序，不上向量库 / embedding。
+
+Reason:
+遵循 Small Steps；等有真实数据后再评估是否引入 embedding。
+
+---
+
+## D016 — LLM 温度默认 0.3
+
+Decision:
+DeepSeek 调用默认 temperature=0.3（可用 DEEPSEEK_TEMPERATURE 覆盖）。
+
+Reason:
+记忆检索场景要求回答忠实于检索到的记忆、避免编造；较低温度显著提升一致性与反幻觉能力。

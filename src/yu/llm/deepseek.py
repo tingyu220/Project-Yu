@@ -14,6 +14,7 @@ from .base import ChatMessage, LLMError, LLMProvider, LLMResponse
 
 DEFAULT_BASE_URL = "https://api.deepseek.com"
 DEFAULT_MODEL = "deepseek-chat"
+DEFAULT_TEMPERATURE = 0.3
 
 
 class DeepSeekProvider(LLMProvider):
@@ -25,11 +26,15 @@ class DeepSeekProvider(LLMProvider):
         base_url: str | None = None,
         model: str | None = None,
         timeout: float = 60.0,
+        temperature: float | None = None,
     ):
         self.api_key = api_key or os.environ.get("DEEPSEEK_API_KEY")
         self.base_url = (base_url or os.environ.get("DEEPSEEK_BASE_URL", DEFAULT_BASE_URL)).rstrip("/")
         self.model = model or os.environ.get("DEEPSEEK_MODEL", DEFAULT_MODEL)
         self.timeout = timeout
+        self.temperature = temperature if temperature is not None else float(
+            os.environ.get("DEEPSEEK_TEMPERATURE", str(DEFAULT_TEMPERATURE))
+        )
         if not self.api_key:
             raise LLMError("缺少 API Key：请设置环境变量 DEEPSEEK_API_KEY")
 
@@ -38,6 +43,7 @@ class DeepSeekProvider(LLMProvider):
             "model": self.model,
             "messages": [{"role": m.role, "content": m.content} for m in messages],
             "stream": False,
+            "temperature": self.temperature,
         }
         data = json.dumps(payload).encode("utf-8")
         url = f"{self.base_url}/chat/completions"

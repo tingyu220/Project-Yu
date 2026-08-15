@@ -1,4 +1,4 @@
-"""Command-line interface for Yu (v0.0.2.1: Authority & Safety Kernel).
+"""Command-line interface for Yu (v0.0.3: Memory Retrieval).
 
 Usage:
     python -m yu.cli
@@ -23,6 +23,7 @@ from .audit.store import AuditStore
 from .authority.owner import OwnerManager
 from .authority.shutdown import ShutdownController
 from .llm import ChatMessage, Conversation, LLMError, create_provider
+from .memory.retrieval import build_context
 from .memory.store import MemoryStore
 from .safety.constitution import SafetyConstitution
 from .safety.kernel import SafetyKernel
@@ -89,7 +90,7 @@ def main(argv: list[str] | None = None) -> int:
             elif command.startswith("记住："):
                 _record(store, command[len("记住："):].strip())
             else:
-                _chat(provider, conversation, command)
+                _chat(store, provider, conversation, command)
     finally:
         store.close()
         audit.close()
@@ -105,13 +106,19 @@ def _build_provider():
         return None
 
 
-def _chat(provider, conversation: Conversation, text: str) -> None:
+def _chat(store: MemoryStore, provider, conversation: Conversation, text: str) -> None:
     if provider is None:
         print("未配置 LLM Provider（缺少 DEEPSEEK_API_KEY），无法对话。")
         return
-    pending = conversation.as_messages() + [ChatMessage(role="user", content=text)]
+    context = build_context(store.retrieve(text, limit=5))
+    base = conversation.as_messages()
+    request = [base[0]]
+    if context:
+        request.append(ChatMessage(role="system", content=context))
+    request.extend(base[1:])
+    request.append(ChatMessage(role="user", content=text))
     try:
-        reply = provider.chat(pending)
+        reply = provider.chat(request)
     except LLMError as e:
         print(f"[错误] {e}")
         return

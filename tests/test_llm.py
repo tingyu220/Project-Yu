@@ -96,6 +96,7 @@ def test_deepseek_builds_request_and_parses_response(monkeypatch):
     payload = json.loads(req.data.decode("utf-8"))
     assert payload["model"] == "deepseek-chat"
     assert payload["stream"] is False
+    assert payload["temperature"] == 0.3
     assert payload["messages"] == [
         {"role": "system", "content": "你是 Yu"},
         {"role": "user", "content": "hi"},

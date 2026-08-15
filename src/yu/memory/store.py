@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Optional
 
 from .models import Event, Memory, utcnow_iso
+from .retrieval import retrieve as retrieve_memories
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS events (
@@ -135,6 +136,10 @@ class MemoryStore:
         query += " ORDER BY id"
         rows = self._conn.execute(query).fetchall()
         return [self._row_to_memory(r) for r in rows]
+
+    def retrieve(self, query: str, limit: int = 5) -> list[tuple[Memory, float]]:
+        """检索与 query 最相关的活跃记忆（关键词 + importance + 时间排序）。"""
+        return retrieve_memories(self.list_memories(), query, limit)
 
     def archive_memory(self, memory_id: int) -> Optional[Memory]:
         archived_at = utcnow_iso()
