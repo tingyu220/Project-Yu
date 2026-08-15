@@ -40,7 +40,15 @@ Python · SQLite · pytest · psutil · PySide6 · Git · GitHub · LLM Provider
 
 ## 版本路线
 
-`v0.0.0 Bootstrap → v0.0.1 Memory Kernel → v0.0.2 LLM Conversation → v0.0.3 Memory Retrieval → v0.0.4 Goals/Tasks/Decisions/Projects → v0.0.5 Daily Planner → v0.0.6 Daily Summary → v0.0.7 Computer Context → v0.0.8 Desktop UI → Production Test → v0.1.0`
+`v0.0.0 Bootstrap → v0.0.1 Memory Kernel → v0.0.2 LLM Conversation → v0.0.2.1 Authority & Safety Kernel → v0.0.3 Memory Retrieval → v0.0.4 Goals/Tasks/Decisions/Projects → v0.0.5 Daily Planner → v0.0.6 Daily Summary → v0.0.7 Computer Context → v0.0.8 Desktop UI → Production Test → v0.1.0`
+
+## 安全控制层（Authority & Safety Kernel）
+
+Yu v0.0.2.1 建立独立于 LLM 的控制层（Control Plane）：Owner 身份、Safety Constitution、Permission（Default Deny）、Risk Engine、Audit Log（append-only）、Shutdown。
+
+原则：能力增长不等于权限增长；LLM 只能提出 ProposedAction，不能直接获得执行权限。
+
+配置：config/safety_constitution.yaml（安全宪法 SAFE-001~010）、config/owner.yaml（单一 Owner）。
 
 ## 运行
 
@@ -48,6 +56,6 @@ Python · SQLite · pytest · psutil · PySide6 · Git · GitHub · LLM Provider
 python -m yu.cli
 ```
 
-对话功能需要设置环境变量 `DEEPSEEK_API_KEY`；可选 `DEEPSEEK_MODEL`（默认 deepseek-chat）、`DEEPSEEK_BASE_URL`、`YU_LLM_PROVIDER`（默认 deepseek）。未设置 Key 时仅记忆命令可用。
+本地命令：记住：/ 记忆 / 权限 / 安全状态 / 审计 / 重置 / exit（或 关闭Yu）。对话功能需要设置环境变量 `DEEPSEEK_API_KEY`；可选 `DEEPSEEK_MODEL`（默认 deepseek-chat）、`DEEPSEEK_BASE_URL`、`YU_LLM_PROVIDER`（默认 deepseek）。未设置 Key 时仅记忆命令可用。
 
 详见 `DEV_STATUS.md`（当前进度）、`DECISIONS.md`（架构决策）、`RESEARCH_BACKLOG.md`（未来方向）。

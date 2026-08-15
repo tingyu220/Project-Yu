@@ -59,3 +59,83 @@ Phase 2 的 LLM 调用使用 Python 标准库 urllib.request，不引入 request
 
 Reason:
 保持依赖最小化（Small Steps），当前仅需非流式 JSON POST；未来如有流式 / 重试等真实需求再评估引入。
+
+---
+
+## D007 — Owner Authority（Single Owner）
+
+Decision:
+Yu 使用 Single Owner 模型；Owner 拥有最高系统管理权限。
+
+Reason:
+明确权限来源，避免多账户复杂度；Owner 身份独立存储，不通过对话判断。
+
+---
+
+## D008 — Default Deny
+
+Decision:
+任何未显式授权的 Capability 默认禁止。
+
+Reason:
+为未来 Computer Use / Agent 建立安全基线：没有明确授予 = 不允许。
+
+---
+
+## D009 — LLM Has No Direct Authority
+
+Decision:
+LLM 只能生成建议、文本和 ProposedAction；不能直接授予权限或执行系统操作。
+
+Reason:
+控制层与智能层分离，LLM 的「思考」不等于「权限」。
+
+---
+
+## D010 — Safety Kernel Outside Intelligence Layer
+
+Decision:
+Safety Kernel 属于 Control Plane；未来 Agent、Planner、Self-Improvement 不得直接修改。
+
+Reason:
+防止能力增长自动带来控制权增长。
+
+---
+
+## D011 — Fail Closed
+
+Decision:
+安全系统异常（宪法无效 / Owner 异常 / 权限引擎错误）时默认拒绝行动。
+
+Reason:
+宁可拒绝，不可为了「保证体验」继续执行。
+
+---
+
+## D012 — Owner Shutdown Cannot Be Refused
+
+Decision:
+Yu 不得阻止 Owner 停止、禁用或删除 Yu。
+
+Reason:
+Owner 保留外部停止权，是最高优先级控制能力之一。
+
+---
+
+## D013 — Capability Does Not Imply Permission
+
+Decision:
+Yu 学会某种能力，不代表自动获得该能力的执行权限。
+
+Reason:
+能力与权限解耦；权限需显式授予。
+
+---
+
+## D014 — 配置使用 YAML（新增依赖 PyYAML）
+
+Decision:
+Safety Constitution 与 Owner 身份使用 YAML 格式（config/*.yaml），引入 PyYAML 依赖。
+
+Reason:
+YAML 对人类更易读易编辑，适合作为 Owner 直接审阅的安全文档；本阶段新增的唯一第三方依赖。
