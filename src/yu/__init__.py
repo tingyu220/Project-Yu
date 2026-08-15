@@ -1,3 +1,3 @@
 """Yu — a local-first long-term personal decision assistant."""
 
-__version__ = "0.0.6"
+__version__ = "0.0.7"

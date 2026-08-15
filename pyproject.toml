@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "yu"
-version = "0.0.6"
+version = "0.0.7"
 description = "Yu — a local-first long-term personal decision assistant for Windows PC."
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["PyYAML>=6.0"]
+dependencies = ["PyYAML>=6.0", "psutil>=5.9"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]

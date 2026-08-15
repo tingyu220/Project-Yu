@@ -16,6 +16,7 @@ DEFAULT_GRANTED = {
     "conversation.read",
     "memory.read",
     "memory.write",
+    "system.status.read",
 }
 
 

@@ -179,3 +179,13 @@ Phase 5 Daily Planner 的输入暂不含「Yesterday Status」（即前一天的
 
 Reason:
 Daily Summary 在 Phase 6 才实现；按版本顺序推进，Phase 6 完成后再让 Planner 读取前一天的 Summary。
+
+---
+
+## D019 — Phase 7 授权 system.status.read（只读）
+
+Decision:
+Phase 7 起，默认授权 system.status.read（R0 只读），用于读取电脑状态；读取动作仍经 Safety Kernel 评估。
+
+Reason:
+按「能力逐步增加」原则，Owner 通过开发 Phase 7 显式授权这一只读能力；写入 / 操作类能力仍 Default Deny。

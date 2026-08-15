@@ -247,8 +247,8 @@ def test_risk_classification():
 
 
 def test_grant_and_revoke(env):
-    assert env.permissions.has_permission("system.status.read") is False
-    env.permissions.grant("system.status.read")
-    assert env.permissions.has_permission("system.status.read") is True
-    env.permissions.revoke("system.status.read")
-    assert env.permissions.has_permission("system.status.read") is False
+    assert env.permissions.has_permission("file.read") is False
+    env.permissions.grant("file.read")
+    assert env.permissions.has_permission("file.read") is True
+    env.permissions.revoke("file.read")
+    assert env.permissions.has_permission("file.read") is False

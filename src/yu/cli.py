@@ -1,4 +1,4 @@
-"""Command-line interface for Yu (v0.0.6: Daily Summary).
+"""Command-line interface for Yu (v0.0.7: Computer Context).
 
 Usage:
     python -m yu.cli
@@ -13,6 +13,7 @@ Commands:
     规划           生成今日计划（也可直接问「我今天应该干什么」）
     总结           生成并保存今日 Daily Summary
     日报           列出已保存的 Daily Summary
+    电脑状态       读取电脑状态并分析（也可问「我电脑为什么卡」）
     权限           查看当前 Permission
     安全状态       查看 Safety Kernel 状态
     审计           查看最近安全审计事件
@@ -26,7 +27,9 @@ from __future__ import annotations
 import os
 
 from . import __version__
+from .actions.models import ProposedAction
 from .audit.store import AuditStore
+from .computer import build_computer_advice, format_status, is_computer_request, read_computer_status
 from .authority.owner import OwnerManager
 from .authority.shutdown import ShutdownController
 from .daily import DailyLogStore, build_daily_summary, today_date
@@ -125,11 +128,15 @@ def main(argv: list[str] | None = None) -> int:
                 _do_summary(store, entities, daily, provider)
             elif command == "日报":
                 _show_daily_logs(daily)
+            elif command in ("电脑状态", "系统状态"):
+                _computer_status(kernel, provider)
             elif command.startswith("记住："):
                 _record(store, command[len("记住："):].strip())
             else:
                 if is_plan_request(command):
                     _plan(store, entities, provider)
+                elif is_computer_request(command):
+                    _computer_status(kernel, provider)
                 else:
                     _chat(store, provider, conversation, command)
     finally:
@@ -206,6 +213,36 @@ def _show_daily_logs(daily: DailyLogStore) -> None:
     for lg in logs:
         first = lg.content.splitlines()[0] if lg.content else ""
         print(f"[{lg.date}] {first}")
+
+
+def _computer_status(kernel: SafetyKernel, provider) -> None:
+    action = ProposedAction(
+        action_id="computer-status",
+        action_type="system.status.read",
+        description="读取电脑状态",
+        requested_by="owner",
+        proposed_by="yu",
+        required_capability="system.status.read",
+        reason="用户请求电脑状态分析",
+    )
+    decision = kernel.evaluate(action)
+    if not decision.allowed:
+        print(f"[拒绝] {decision.reason}")
+        return
+    try:
+        status = read_computer_status()
+    except Exception as e:
+        print(f"[错误] 读取电脑状态失败：{e}")
+        return
+    if provider is None:
+        print(format_status(status))
+        return
+    try:
+        advice = build_computer_advice(provider, status)
+    except LLMError as e:
+        print(f"[错误] {e}")
+        return
+    print(advice)
 
 
 def _record(store: MemoryStore, content: str) -> None:
