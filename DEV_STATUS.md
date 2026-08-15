@@ -6,7 +6,11 @@ Yu v0.0.8（Web Experience）— Yu Core 能力保持 v0.0.7（无退化），�
 
 ## Current Phase
 
-Phase 8 — Web Experience（Yu Web）：Life Cockpit + Memory Universe。
+Phase 8 — Web Experience（Yu Web）。
+- v0.0.8-alpha.1：Life Cockpit + Memory Universe。
+- v0.0.8-alpha.2：Cockpit Interaction Refactor —— Persistent Cockpit + Bounded Conversation
+  （左右分栏、文档高度锁定、对话独立滚动、Composer 常驻、Markdown 渲染、长回复折叠、
+  SystemHealthCard、Yu UI 状态机、Auto Follow + ↓ Latest）。
 
 ## Status
 

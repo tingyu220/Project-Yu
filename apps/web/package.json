@@ -1,7 +1,7 @@
 {
   "name": "yu-web",
   "private": true,
-  "version": "0.0.8",
+  "version": "0.0.8-alpha.2",
   "type": "module",
   "description": "Yu Web — the Life Cockpit and Memory Universe interface for Yu.",
   "scripts": {
