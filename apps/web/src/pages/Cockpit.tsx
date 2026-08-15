@@ -55,10 +55,11 @@ export default function Cockpit() {
   const openCount = today?.tasks.open.length ?? 0;
   const memCount = today?.memory_count ?? 0;
   const ram = sys?.status?.ram_percent ?? null;
+  const hasReply = ask.reply.length > 0 || ask.error !== null;
 
   return (
     <main className="page page--cockpit">
-      <div className="cockpit">
+      <div className={"cockpit" + (hasReply ? " cockpit--answering" : "")}>
         <section className="cockpit__hero">
           <span className="hero__date">{formatDate(now)}</span>
           <div className="hero__core-wrap">

@@ -277,6 +277,7 @@ a {
   height: 200px;
   display: grid;
   place-items: center;
+  transition: width 0.5s var(--ease), height 0.5s var(--ease);
 }
 
 .core__halo {
@@ -406,12 +407,14 @@ a {
 /* ---------------------------------------------------------------- cockpit */
 .cockpit {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
 .cockpit__hero {
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -430,6 +433,7 @@ a {
 
 .hero__core-wrap {
   margin: 26px 0 8px;
+  transition: margin 0.5s var(--ease);
 }
 
 .hero__greeting {
@@ -447,6 +451,7 @@ a {
   letter-spacing: 0.01em;
   color: var(--text-0);
   max-width: 640px;
+  transition: margin 0.5s var(--ease);
 }
 
 .hero__one strong {
@@ -462,6 +467,7 @@ a {
 
 /* stats */
 .stats {
+  flex-shrink: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(120px, 1fr));
   gap: 1px;
@@ -513,20 +519,28 @@ a {
 
 /* ask + answer */
 .ask-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
   max-width: 640px;
-  margin-top: auto;
-  padding-top: 28px;
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 .answer {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   width: 100%;
-  max-width: 640px;
-  margin: 0 auto 22px;
-  padding: 22px 24px;
+  margin: 0 0 18px;
+  padding: 18px 22px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: rgba(12, 13, 16, 0.6);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(236, 236, 232, 0.18) transparent;
 }
 
 .answer__kind {
@@ -600,6 +614,7 @@ a {
 }
 
 .ask {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -654,6 +669,7 @@ a {
 }
 
 .ask__hint {
+  flex-shrink: 0;
   margin-top: 10px;
   text-align: center;
   font-size: 12px;
@@ -662,6 +678,7 @@ a {
 
 /* footer */
 .foot {
+  flex-shrink: 0;
   width: 100%;
   max-width: 640px;
   margin: 18px auto 0;
@@ -684,6 +701,37 @@ a {
 
 .foot__dot--ok { background: var(--ok); }
 .foot__dot--off { background: var(--danger); }
+
+/* answering 状态：hero 紧凑，为回答区让位 */
+.cockpit--answering .core {
+  width: 140px;
+  height: 140px;
+}
+
+.cockpit--answering .hero__core-wrap {
+  margin: 10px 0 4px;
+}
+
+.cockpit--answering .hero__one {
+  margin-top: 10px;
+}
+
+.cockpit--answering .hero__sub {
+  display: none;
+}
+
+.answer::-webkit-scrollbar {
+  width: 6px;
+}
+
+.answer::-webkit-scrollbar-thumb {
+  background: rgba(236, 236, 232, 0.16);
+  border-radius: 999px;
+}
+
+.answer::-webkit-scrollbar-track {
+  background: transparent;
+}
 
 /* ---------------------------------------------------------------- memory universe */
 .universe {
