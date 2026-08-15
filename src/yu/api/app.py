@@ -40,7 +40,7 @@ from ..entities.models import Decision, Goal, Project, Task
 from ..llm import ChatMessage, LLMError
 from ..llm.conversation import DEFAULT_SYSTEM_PROMPT
 from ..memory.models import Memory
-from ..memory.retrieval import build_context
+from ..memory.retrieval import build_context as build_memory_context
 from ..planner import build_plan, is_plan_request
 from .context import AppContext, build_context
 from .schemas import ChatRequest, MemoryQueryRequest
@@ -164,7 +164,7 @@ def _chat_memory(ctx: AppContext, message: str, history: list[Any]) -> dict[str,
             retrieved=retrieved,
         )
 
-    context_text = build_context(matches)
+    context_text = build_memory_context(matches)
     request_messages: list[ChatMessage] = [ChatMessage(role="system", content=DEFAULT_SYSTEM_PROMPT)]
     if context_text:
         request_messages.append(ChatMessage(role="system", content=context_text))

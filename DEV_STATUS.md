@@ -34,7 +34,7 @@ PASS（自动化验证通过：pytest 90 passed + 前端 tsc/vite 构建通过 +
 
 ## Tests
 
-pytest: 90 passed, 0 failed（84 项 Yu Core 回归 + 6 项 API Adapter 冒烟）
+pytest: 91 passed, 0 failed（84 项 Yu Core 回归 + 7 项 API Adapter 冒烟，含 build_context 命名冲突回归）
 
 - 前端：tsc --noEmit 通过；vite build 通过（410 modules，产物 dist/index.html + assets，gzip 118.6 kB）
 - 端到端：python -m yu.api 启动后，/api/status、/api/today、/api/memories、/api/memory/stats、

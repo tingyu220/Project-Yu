@@ -82,3 +82,37 @@ def test_chat_degrades_without_llm(client):
     body = r.json()
     assert body["kind"] in ("chat", "plan", "computer", "error")
     assert isinstance(body["retrieved"], list)
+
+
+def test_chat_memory_injects_context_with_provider():
+    """回归：修复 app.py 中 build_context 命名冲突（memory.retrieval vs context）。
+
+    当 LLM Provider 存在时，_chat_memory 必须走完「检索记忆 -> 注入上下文」路径。
+    """
+    from yu.api import app as api_app
+    from yu.api.context import build_context
+    from yu.llm import LLMResponse
+
+    class FakeProvider:
+        name = "fake"
+
+        def __init__(self):
+            self.messages = None
+
+        def chat(self, messages):
+            self.messages = messages
+            return LLMResponse(content="测试回复")
+
+    ctx = build_context()
+    fp = FakeProvider()
+    ctx.provider = fp
+    try:
+        r = api_app._chat_memory(ctx, "你好", [])
+    finally:
+        ctx.close()
+
+    assert r["kind"] == "chat"
+    assert r["reply"] == "测试回复"
+    assert isinstance(r["retrieved"], list)
+    assert fp.messages is not None
+    assert fp.messages[0].role == "system"
