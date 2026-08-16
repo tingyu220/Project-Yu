@@ -85,6 +85,8 @@ npm run dev                 # http://localhost:5173（自动代理 /api）
 
 前端（生产，单进程）：`npm run build` 后，`python -m yu.api` 会同时托管 API 与构建产物。
 
+一键启动：双击仓库根目录的 `start.bat`（构建前端 + 启动后端 + 自动打开浏览器）；开发热更新用 `dev.bat`（后端 + Vite 两个窗口）。
+
 演示 / 隐私：导航栏切换「Private / Demo」，或访问 `/?demo=true`（隐藏私人记忆内容，适合录屏）。
 
 详见 `DEV_STATUS.md`（当前进度）、`DECISIONS.md`（架构决策）、`RESEARCH_BACKLOG.md`（未来方向）。
