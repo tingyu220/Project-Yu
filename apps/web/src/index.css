@@ -1271,24 +1271,24 @@ a {
 .markdown {
   color: var(--text-0);
   font-size: 16px;
-  line-height: 1.68;
+  line-height: 1.55;
 }
 
 .markdown > :first-child { margin-top: 0; }
 .markdown > :last-child { margin-bottom: 0; }
 
-.markdown p { margin: 0 0 12px; }
+.markdown p { margin: 0 0 8px; }
 .markdown p:last-child { margin-bottom: 0; }
 
-.markdown h1 { font-size: 22px; line-height: 1.3; margin: 24px 0 10px; }
-.markdown h2 { font-size: 20px; line-height: 1.35; margin: 22px 0 10px; }
-.markdown h3 { font-size: 17px; line-height: 1.4; margin: 18px 0 8px; }
-.markdown h4 { font-size: 16px; line-height: 1.4; margin: 16px 0 6px; }
+.markdown h1 { font-size: 20px; line-height: 1.3; margin: 16px 0 6px; }
+.markdown h2 { font-size: 18px; line-height: 1.32; margin: 14px 0 6px; }
+.markdown h3 { font-size: 16px; line-height: 1.38; margin: 12px 0 5px; }
+.markdown h4 { font-size: 15px; line-height: 1.4; margin: 10px 0 4px; }
 
-.markdown ul, .markdown ol { margin: 10px 0 14px; padding-left: 1.4em; }
-.markdown li { margin: 6px 0; }
+.markdown ul, .markdown ol { margin: 6px 0 10px; padding-left: 1.35em; }
+.markdown li { margin: 4px 0; }
 .markdown li > p { margin: 0; }
-.markdown li ul, .markdown li ol { margin: 6px 0; }
+.markdown li ul, .markdown li ol { margin: 4px 0; }
 .markdown strong { font-weight: 600; color: var(--text-0); }
 
 .markdown code {
@@ -1303,30 +1303,30 @@ a {
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  padding: 14px 16px;
+  padding: 12px 14px;
   overflow-x: auto;
-  margin: 14px 0;
+  margin: 10px 0;
 }
 
 .markdown pre code { background: transparent; padding: 0; }
 
 .markdown blockquote {
-  margin: 14px 0;
-  padding-left: 14px;
+  margin: 10px 0;
+  padding-left: 12px;
   border-left: 2px solid var(--line-strong);
   color: var(--text-1);
 }
 
 .markdown table {
   border-collapse: collapse;
-  margin: 14px 0;
+  margin: 10px 0;
   width: 100%;
   font-size: 13px;
 }
 
 .markdown th, .markdown td {
   border: 1px solid var(--line);
-  padding: 8px 10px;
+  padding: 6px 10px;
   text-align: left;
 }
 
@@ -1341,7 +1341,7 @@ a {
 .markdown hr {
   border: 0;
   border-top: 1px solid var(--line);
-  margin: 20px 0;
+  margin: 12px 0;
   opacity: 0.25;
 }
 
