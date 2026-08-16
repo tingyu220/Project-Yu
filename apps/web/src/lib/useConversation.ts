@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { api } from "./api";
-import type { HistoryMessage, Message, NodeHint, YuUIState } from "./types";
+import type { HistoryMessage, Message, YuUIState } from "./types";
 
 let seq = 0;
 function nextId(): string {
@@ -16,15 +16,10 @@ function intentOf(text: string): "planning" | "system_analysis" | "thinking" {
   return "thinking";
 }
 
-function truncate(s: string, n: number): string {
-  return s.length > n ? s.slice(0, n) + "…" : s;
-}
-
 export interface ConversationApi {
   messages: Message[];
   mode: "idle" | "conversation";
   uiState: YuUIState;
-  nodes: NodeHint[];
   busy: boolean;
   submit: (text: string) => void;
 }
@@ -33,7 +28,6 @@ export interface ConversationApi {
 export function useConversation(reduced: boolean): ConversationApi {
   const [messages, setMessages] = useState<Message[]>([]);
   const [uiState, setUiState] = useState<YuUIState>("idle");
-  const [nodes, setNodes] = useState<NodeHint[]>([]);
   const [busy, setBusy] = useState(false);
   const historyRef = useRef<HistoryMessage[]>([]);
   const busyRef = useRef(false);
@@ -46,7 +40,6 @@ export function useConversation(reduced: boolean): ConversationApi {
 
       setMessages((prev) => [...prev, { id: nextId(), role: "user", content: t, createdAt: Date.now() }]);
       setBusy(true);
-      setNodes([]);
       setUiState(intentOf(t));
 
       api
@@ -63,18 +56,15 @@ export function useConversation(reduced: boolean): ConversationApi {
               ...prev,
               { id: nextId(), role: "yu", content: res.reply, kind: res.kind, retrieved: res.retrieved, createdAt: Date.now() },
             ]);
-            setNodes([]);
             setBusy(false);
             busyRef.current = false;
             setUiState("answering");
             window.setTimeout(() => setUiState("ready"), 1400);
           };
 
-          const hints = res.retrieved.slice(0, 7).map((m) => ({ id: m.memory.id, label: truncate(m.memory.content, 12) }));
-          if (hints.length > 0 && !reduced) {
-            setNodes(hints);
+          if (res.retrieved.length > 0 && !reduced) {
             setUiState("remembering");
-            window.setTimeout(append, 900);
+            window.setTimeout(append, 1000);
           } else {
             append();
           }
@@ -84,7 +74,6 @@ export function useConversation(reduced: boolean): ConversationApi {
             ...prev,
             { id: nextId(), role: "yu", content: e instanceof Error ? e.message : String(e), kind: "error", createdAt: Date.now() },
           ]);
-          setNodes([]);
           setBusy(false);
           busyRef.current = false;
           setUiState("error");
@@ -95,8 +84,5 @@ export function useConversation(reduced: boolean): ConversationApi {
 
   const mode = messages.length > 0 ? "conversation" : "idle";
 
-  return useMemo(
-    () => ({ messages, mode, uiState, nodes, busy, submit }),
-    [messages, mode, uiState, nodes, busy, submit],
-  );
+  return useMemo(() => ({ messages, mode, uiState, busy, submit }), [messages, mode, uiState, busy, submit]);
 }

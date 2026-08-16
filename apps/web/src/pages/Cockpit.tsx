@@ -126,11 +126,10 @@ export default function Cockpit() {
         className="cockpit-layout"
         initial={{ opacity: 0, x: reduced ? 0 : 24 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.45, ease: [0.22, 0.61, 0.36, 1] }}
+        transition={{ duration: reduced ? 0.001 : 0.7, ease: [0.22, 0.61, 0.36, 1] }}
       >
         <CockpitPanel
           state={conv.uiState}
-          nodes={conv.nodes}
           today={today}
           sys={sys?.status ?? null}
           demo={demo}

@@ -11,10 +11,18 @@ interface ConversationPanelProps {
   onSubmit: (text: string) => void;
 }
 
-const WORKING: YuUIState[] = ["thinking", "remembering", "planning", "system_analysis", "answering"];
+const STATE_LABEL: Record<YuUIState, string> = {
+  idle: "READY",
+  thinking: "THINKING",
+  remembering: "REMEMBERING",
+  planning: "PLANNING",
+  system_analysis: "ANALYZING",
+  answering: "ANSWERING",
+  ready: "READY",
+  error: "ERROR",
+};
 
 export default function ConversationPanel({ messages, uiState, busy, reduced, mask, onSubmit }: ConversationPanelProps) {
-  const statusLabel = uiState === "error" ? "ERROR" : WORKING.includes(uiState) ? "WORKING" : "READY";
   const dot = uiState === "error" ? "foot__dot--off" : "foot__dot--ok";
 
   return (
@@ -23,7 +31,7 @@ export default function ConversationPanel({ messages, uiState, busy, reduced, ma
         <span className="conversation-panel__title">CONVERSATION</span>
         <span className="conversation-panel__status">
           <span className={"foot__dot " + dot} />
-          {statusLabel}
+          {STATE_LABEL[uiState]}
         </span>
       </header>
       <MessageList messages={messages} busy={busy} reduced={reduced} mask={mask} />

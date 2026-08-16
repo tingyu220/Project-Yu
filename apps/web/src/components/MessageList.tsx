@@ -42,7 +42,7 @@ export default function MessageList({ messages, busy, reduced, mask }: MessageLi
                 className="msg msg--user"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
+                transition={{ duration: 0.38, ease: [0.22, 0.61, 0.36, 1] }}
               >
                 <div className="msg__label">YOU</div>
                 <div className="msg__body">{m.content}</div>
@@ -52,7 +52,7 @@ export default function MessageList({ messages, busy, reduced, mask }: MessageLi
                 key={m.id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, ease: "easeOut" }}
+                transition={{ duration: 0.55, ease: [0.22, 0.61, 0.36, 1] }}
               >
                 <YuMessage message={m} mask={mask} />
               </motion.div>

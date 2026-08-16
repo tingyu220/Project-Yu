@@ -287,35 +287,36 @@ a {
 
 .core__halo {
   position: absolute;
-  inset: 12%;
+  inset: -16%;
   border-radius: 50%;
   background: radial-gradient(circle, var(--accent-glow), rgba(230, 207, 164, 0) 70%);
-  filter: blur(2px);
-  animation: core-breathe 6s ease-in-out infinite;
+  pointer-events: none;
+  animation: yu-halo-breathe 5.5s ease-in-out infinite;
 }
 
-.core__disc {
-  position: relative;
-  width: 46%;
-  height: 46%;
+.core__glow {
+  position: absolute;
+  inset: 8%;
   border-radius: 50%;
-  display: grid;
-  place-items: center;
+  background: radial-gradient(circle, rgba(230, 207, 164, 0.12), rgba(230, 207, 164, 0) 65%);
+  filter: blur(3px);
+  pointer-events: none;
+  animation: yu-glow-breathe 5.5s ease-in-out infinite;
+}
+
+.core__sphere {
+  position: absolute;
+  inset: 24%;
+  border-radius: 50%;
   background:
-    radial-gradient(circle at 38% 32%, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 42%),
+    radial-gradient(circle at 38% 32%, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 42%),
     var(--bg-2);
   border: 1px solid var(--line-strong);
   box-shadow:
     0 0 0 1px rgba(236, 236, 232, 0.02),
-    0 0 46px var(--accent-soft),
-    inset 0 0 22px rgba(0, 0, 0, 0.5);
-}
-
-.core__glyph {
-  font-size: 30px;
-  font-weight: 500;
-  color: var(--text-0);
-  line-height: 1;
+    0 0 40px var(--accent-soft),
+    inset 0 0 20px rgba(0, 0, 0, 0.5);
+  animation: yu-core-breathe 5.5s ease-in-out infinite;
 }
 
 .core__ring {
@@ -324,89 +325,68 @@ a {
   border-radius: 50%;
   border: 1px solid var(--accent-soft);
   opacity: 0;
-}
-
-.core__nodes {
-  position: absolute;
-  inset: 0;
-}
-
-.core__node {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 7px;
-  height: 7px;
-  margin: -3.5px 0 0 -3.5px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 10px var(--accent-glow);
-}
-
-.core__node-label {
-  position: absolute;
-  left: 50%;
-  bottom: 12px;
-  transform: translateX(-50%);
-  white-space: nowrap;
-  font-size: 11px;
-  color: var(--text-1);
-}
-
-.core__caption {
-  position: absolute;
-  bottom: -28px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: var(--text-2);
-  white-space: nowrap;
+  pointer-events: none;
 }
 
 /* states */
-.core--listening .core__ring {
-  animation: core-ring 1.6s var(--ease) infinite;
+.core--thinking .core__sphere,
+.core--thinking .core__halo,
+.core--thinking .core__glow {
+  animation-duration: 2.2s;
 }
 
-.core--thinking .core__disc {
-  animation: core-think 1.4s var(--ease) infinite;
+.core--planning .core__sphere,
+.core--planning .core__halo,
+.core--planning .core__glow {
+  animation-duration: 2.5s;
 }
 
-.core--thinking .core__halo {
-  animation: core-think-halo 1.4s var(--ease) infinite;
+.core--system_analysis .core__sphere,
+.core--system_analysis .core__halo,
+.core--system_analysis .core__glow {
+  animation-duration: 2.2s;
+}
+
+.core--answering .core__sphere,
+.core--answering .core__halo,
+.core--answering .core__glow {
+  animation-duration: 3s;
+}
+
+.core--remembering .core__ring {
+  animation: yu-ring-pulse 2.6s ease-out infinite;
 }
 
 .core--error .core__halo {
-  background: radial-gradient(circle, rgba(201, 143, 143, 0.32), rgba(201, 143, 143, 0) 70%);
-  animation: core-breathe 2.6s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(201, 143, 143, 0.24), rgba(201, 143, 143, 0) 70%);
+  animation-duration: 3s;
 }
 
-.core--error .core__disc {
-  box-shadow: 0 0 46px rgba(201, 143, 143, 0.16);
+.core--error .core__sphere {
+  box-shadow:
+    0 0 0 1px rgba(236, 236, 232, 0.02),
+    0 0 40px rgba(201, 143, 143, 0.18),
+    inset 0 0 20px rgba(0, 0, 0, 0.5);
 }
 
-@keyframes core-breathe {
-  0%, 100% { opacity: 0.55; transform: scale(1); }
-  50% { opacity: 0.95; transform: scale(1.06); }
+@keyframes yu-core-breathe {
+  0%, 100% { transform: scale(0.985); }
+  50% { transform: scale(1.015); }
 }
 
-@keyframes core-ring {
-  0% { opacity: 0; transform: scale(0.6); }
-  40% { opacity: 0.7; }
-  100% { opacity: 0; transform: scale(1.5); }
+@keyframes yu-halo-breathe {
+  0%, 100% { transform: scale(0.9); opacity: 0.12; }
+  50% { transform: scale(1.12); opacity: 0.3; }
 }
 
-@keyframes core-think {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(0.86); }
+@keyframes yu-glow-breathe {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.55; }
 }
 
-@keyframes core-think-halo {
-  0%, 100% { opacity: 0.5; transform: scale(1); }
-  50% { opacity: 1; transform: scale(0.8); }
+@keyframes yu-ring-pulse {
+  0% { transform: scale(0.55); opacity: 0.32; }
+  100% { transform: scale(1.32); opacity: 0; }
 }
 
 /* ---------------------------------------------------------------- cockpit */
@@ -1156,17 +1136,18 @@ a {
 
 .msg {
   margin-bottom: 26px;
-  max-width: 720px;
+  max-width: 760px;
 }
 
 .msg--user {
   margin-left: auto;
   text-align: right;
+  max-width: 560px;
 }
 
 .msg__label {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.22em;
   color: var(--text-2);
   margin-bottom: 8px;
@@ -1221,9 +1202,24 @@ a {
 }
 
 .msg--typing {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
+  overflow: hidden;
+  padding: 4px 0;
+}
+
+.msg--typing::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -22%;
+  width: 18%;
+  content: "";
+  background: linear-gradient(90deg, transparent, var(--accent-soft), transparent);
+  opacity: 0.55;
+  animation: typing-scan 2.8s ease-in-out infinite;
 }
 
 .typing-dots {
@@ -1247,11 +1243,16 @@ a {
   30% { opacity: 0.9; }
 }
 
+@keyframes typing-scan {
+  0%, 18% { transform: translateX(0); }
+  72%, 100% { transform: translateX(720%); }
+}
+
 .latest-btn {
   position: absolute;
   right: 22px;
   bottom: 14px;
-  padding: 7px 14px;
+  padding: 5px 12px;
   border-radius: 999px;
   border: 1px solid var(--line-strong);
   background: rgba(18, 20, 25, 0.9);
@@ -1266,30 +1267,28 @@ a {
   border-color: var(--accent);
 }
 
-/* ---------- Markdown ---------- */
+/* ---------- Markdown (Yu Conversation Typography) ---------- */
 .markdown {
   color: var(--text-0);
+  font-size: 16px;
+  line-height: 1.68;
 }
 
 .markdown > :first-child { margin-top: 0; }
 .markdown > :last-child { margin-bottom: 0; }
 
 .markdown p { margin: 0 0 12px; }
+.markdown p:last-child { margin-bottom: 0; }
 
-.markdown h1, .markdown h2, .markdown h3, .markdown h4 {
-  font-weight: 500;
-  line-height: 1.3;
-  margin: 20px 0 10px;
-  color: var(--text-0);
-}
+.markdown h1 { font-size: 22px; line-height: 1.3; margin: 24px 0 10px; }
+.markdown h2 { font-size: 20px; line-height: 1.35; margin: 22px 0 10px; }
+.markdown h3 { font-size: 17px; line-height: 1.4; margin: 18px 0 8px; }
+.markdown h4 { font-size: 16px; line-height: 1.4; margin: 16px 0 6px; }
 
-.markdown h1 { font-size: 18px; }
-.markdown h2 { font-size: 16px; }
-.markdown h3 { font-size: 15px; }
-.markdown h4 { font-size: 14px; }
-
-.markdown ul, .markdown ol { margin: 0 0 12px; padding-left: 22px; }
-.markdown li { margin: 4px 0; }
+.markdown ul, .markdown ol { margin: 10px 0 14px; padding-left: 1.4em; }
+.markdown li { margin: 6px 0; }
+.markdown li > p { margin: 0; }
+.markdown li ul, .markdown li ol { margin: 6px 0; }
 .markdown strong { font-weight: 600; color: var(--text-0); }
 
 .markdown code {
@@ -1306,28 +1305,28 @@ a {
   border-radius: var(--radius-sm);
   padding: 14px 16px;
   overflow-x: auto;
-  margin: 0 0 12px;
+  margin: 14px 0;
 }
 
 .markdown pre code { background: transparent; padding: 0; }
 
 .markdown blockquote {
-  margin: 0 0 12px;
-  padding: 4px 0 4px 14px;
+  margin: 14px 0;
+  padding-left: 14px;
   border-left: 2px solid var(--line-strong);
   color: var(--text-1);
 }
 
 .markdown table {
   border-collapse: collapse;
-  margin: 0 0 12px;
+  margin: 14px 0;
   width: 100%;
   font-size: 13px;
 }
 
 .markdown th, .markdown td {
   border: 1px solid var(--line);
-  padding: 6px 10px;
+  padding: 8px 10px;
   text-align: left;
 }
 
@@ -1342,7 +1341,8 @@ a {
 .markdown hr {
   border: 0;
   border-top: 1px solid var(--line);
-  margin: 16px 0;
+  margin: 20px 0;
+  opacity: 0.25;
 }
 
 /* ---------- System health card ---------- */
@@ -1456,10 +1456,6 @@ a {
   height: 132px;
 }
 
-.core--compact .core__glyph {
-  font-size: 22px;
-}
-
 /* ---------- Responsive ---------- */
 @media (max-width: 1199px) {
   .cockpit-layout {
@@ -1490,7 +1486,17 @@ a {
 
 @media (max-height: 600px) {
   .hero__date { display: none; }
-  .core__caption { display: none; }
 }
 
+/* Core: reduced motion — 停止扩散/缩放，保留极轻微静态光晕 */
+@media (prefers-reduced-motion: reduce) {
+  .core__halo,
+  .core__sphere,
+  .core__glow,
+  .core__ring {
+    animation: none !important;
+  }
+  .core__halo { opacity: 0.18 !important; }
+  .core__glow { opacity: 0.4 !important; }
+}
 

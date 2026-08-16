@@ -1,64 +1,22 @@
-import { AnimatePresence, motion } from "framer-motion";
 import { useReducedMotion } from "../lib/useReducedMotion";
-import type { NodeHint, YuUIState } from "../lib/types";
-
-const CAPTIONS: Record<YuUIState, string> = {
-  idle: "READY",
-  thinking: "THINKING",
-  remembering: "REMEMBERING",
-  planning: "PLANNING",
-  system_analysis: "ANALYZING",
-  answering: "ANSWERING",
-  ready: "READY",
-  error: "ERROR",
-};
-
-const NODE_RADIUS = 76;
+import type { YuUIState } from "../lib/types";
 
 interface CoreProps {
   state: YuUIState;
-  nodes?: NodeHint[];
   compact?: boolean;
 }
 
-export default function Core({ state, nodes = [], compact = false }: CoreProps) {
+/** Yu Core —— 纯视觉智能核心：Sphere + Glow + Halo，只表达 Presence / State / Energy，不承担文字。 */
+export default function Core({ state, compact = false }: CoreProps) {
   const reduced = useReducedMotion();
-  const showNodes = state === "remembering" && nodes.length > 0 && !reduced;
-  const count = Math.min(nodes.length, 7);
+  const remembering = state === "remembering" && !reduced;
 
   return (
     <div className={"core" + (compact ? " core--compact" : "") + " core--" + state} aria-hidden="true">
       <div className="core__halo" />
-      <div className="core__ring" />
-      <div className="core__disc">
-        <span className="core__glyph">宇</span>
-      </div>
-
-      <AnimatePresence>
-        {showNodes && (
-          <div className="core__nodes" key="nodes">
-            {nodes.slice(0, count).map((n, i) => {
-              const angle = (i / Math.max(count, 1)) * Math.PI * 2 - Math.PI / 2;
-              const px = Math.cos(angle) * NODE_RADIUS;
-              const py = Math.sin(angle) * NODE_RADIUS;
-              return (
-                <motion.span
-                  key={n.id}
-                  className="core__node"
-                  initial={{ x: px, y: py, scale: 0.5, opacity: 0 }}
-                  animate={{ x: 0, y: 0, scale: [0.7, 1, 0.35], opacity: [0, 1, 0] }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 1.15, ease: "easeInOut" }}
-                >
-                  <span className="core__node-label">{n.label}</span>
-                </motion.span>
-              );
-            })}
-          </div>
-        )}
-      </AnimatePresence>
-
-      <span className="core__caption">{CAPTIONS[state]}</span>
+      <div className="core__glow" />
+      <div className="core__sphere" />
+      {remembering && <div className="core__ring" />}
     </div>
   );
 }
