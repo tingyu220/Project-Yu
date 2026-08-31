@@ -3,6 +3,7 @@ import type {
   ChatResponse,
   HistoryMessage,
   Memory,
+  MemoryResult,
   MemoryStats,
   RetrievalMatch,
   StatusResponse,
@@ -37,6 +38,11 @@ function post<T>(path: string, body: unknown): Promise<T> {
   });
 }
 
+export interface MemoryWriteResponse {
+  result: MemoryResult;
+  memory: Memory | null;
+}
+
 export const api = {
   status: () => get<StatusResponse>("/api/status"),
   today: () => get<TodayResponse>("/api/today"),
@@ -46,6 +52,12 @@ export const api = {
   systemStatus: () => get<SystemStatusResponse>("/api/system/status"),
   queryMemories: (query: string, limit = 8) =>
     post<{ query: string; matches: RetrievalMatch[] }>("/api/memories/query", { query, limit }),
-  chat: (message: string, history: HistoryMessage[] = []) =>
-    post<ChatResponse>("/api/chat", { message, history }),
+  createMemory: (content: string, type = "fact", importance = "high") =>
+    post<MemoryWriteResponse>("/api/memories", { content, type, importance }),
+  updateMemory: (id: number, content: string) =>
+    post<MemoryWriteResponse>("/api/memories/" + id + "/update", { content }),
+  archiveMemory: (id: number) =>
+    post<MemoryWriteResponse>("/api/memories/" + id + "/archive", {}),
+  chat: (message: string, history: HistoryMessage[] = [], referencedMemoryIds: number[] = []) =>
+    post<ChatResponse>("/api/chat", { message, history, referenced_memory_ids: referencedMemoryIds }),
 };

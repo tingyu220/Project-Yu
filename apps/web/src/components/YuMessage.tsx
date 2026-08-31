@@ -42,8 +42,9 @@ export default function YuMessage({ message, mask }: YuMessageProps) {
         {message.retrieved && message.retrieved.length > 0 && (
           <div className="msg__chips">
             {message.retrieved.slice(0, 6).map((m) => (
-              <span key={m.memory.id} className="chip">
+              <span key={m.memory.id} className="chip" title={"mem_" + m.memory.id}>
                 <span className="chip__dot" />
+                <span className="chip__id">#{m.memory.id}</span>
                 {mask(m.memory.content)}
               </span>
             ))}

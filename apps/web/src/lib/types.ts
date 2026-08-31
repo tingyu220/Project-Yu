@@ -9,7 +9,12 @@ export interface Memory {
   importance: Importance;
   status: string;
   source_event_id: number | null;
+  source_type: string;
+  source_role: string | null;
+  confidence: number;
+  verified: boolean;
   created_at: string;
+  updated_at: string | null;
   archived_at: string | null;
 }
 
@@ -96,6 +101,7 @@ export interface MemoryStats {
   total: number;
   active: number;
   archived: number;
+  verified: number;
   by_type: Record<string, number>;
   by_importance: Record<string, number>;
 }
@@ -107,12 +113,32 @@ export interface RetrievalMatch {
 
 export type ChatKind = "chat" | "plan" | "computer" | "error";
 
+export interface MemoryResult {
+  operation: string;
+  memory_id: number | null;
+  success: boolean;
+  verified: boolean;
+  before: string | null;
+  after: string | null;
+  reason: string;
+}
+
+export interface MemoryClaim {
+  text: string;
+  supported: boolean;
+}
+
 export interface ChatResponse {
   kind: ChatKind;
   reply: string;
   retrieved: RetrievalMatch[];
   allowed: boolean;
   reason: string;
+  intent?: string;
+  memory_result?: MemoryResult | null;
+  memory_claims?: MemoryClaim[];
+  memory_correction?: string;
+  memory_probe?: boolean;
 }
 
 export interface HistoryMessage {

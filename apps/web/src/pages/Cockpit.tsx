@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import CockpitPanel from "../components/CockpitPanel";
 import Composer from "../components/Composer";
 import ConversationPanel from "../components/ConversationPanel";
@@ -29,7 +29,10 @@ function greeting(d: Date): string {
 export default function Cockpit() {
   const reduced = useReducedMotion();
   const { demo, mask } = usePresentation();
-  const conv = useConversation(reduced);
+  const refreshToday = useCallback(() => {
+    api.today().then(setToday).catch(() => {});
+  }, []);
+  const conv = useConversation(reduced, refreshToday);
 
   const [today, setToday] = useState<TodayResponse | null>(null);
   const [status, setStatus] = useState<StatusResponse | null>(null);

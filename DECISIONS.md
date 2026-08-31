@@ -212,3 +212,108 @@ Memory Universe 与 AI Core 的视觉第一版使用 2D Canvas 力布局 + CSS/M
 Reason:
 轻薄本性能预算 + prefers-reduced-motion 要求 + 需保证清晰稳定流畅；确有需要时再以「视觉增强组件」
 身份引入 Three.js，并实现 renderer/buffer 的 dispose 与离开页面时的资源释放。
+
+## D022 — Memory Requires Provenance（对应修复方案 D011）
+
+Decision:
+所有 Personal Memory 必须包含来源（source_type / source_event_id / source_role / confidence）。
+没有来源的内容不得被当作用户历史事实；无来源的 Personal Memory 写入默认拒绝（除非 SYSTEM_FACT）。
+
+Reason:
+修复 Personal Memory Hallucination：任何「用户过去说过/做过」的陈述都必须可追溯到原始证据。
+
+---
+
+## D023 — User Fact != Model Inference（对应修复方案 D012）
+
+Decision:
+用户明确表达的事实（USER_EXPLICIT / USER_CONFIRMED）与模型推断（ASSISTANT_INFERENCE /
+SUMMARY_DERIVED）必须使用不同的数据类型与 source_type 区分。
+
+Reason:
+防止模型把「推断」悄悄升级成「用户事实」。
+
+---
+
+## D024 — Assistant Content Cannot Become User Fact（对应修复方案 D013）
+
+Decision:
+Assistant 自己生成的内容（建议 / 假设 / 推断）不得直接转换为 User Fact；默认禁止
+Assistant Output → User Memory 的写入。
+
+Reason:
+防止 Self-Contamination：LLM 提出的假设进入历史后，下一轮被误认为用户曾说过。
+
+---
+
+## D025 — Daily Summary Is Not Primary Evidence（对应修复方案 D014）
+
+Decision:
+Daily Summary 只能作为 Index / Recap / Navigation，不能替代 Raw User Event 成为用户事实证据。
+SUMMARY_DERIVED 内容不得支撑「你之前说过……」的强归因。
+
+Reason:
+摘要本身是二次派生，可能引入推断与失真，不能作为 Primary Evidence。
+
+---
+
+## D026 — Prefer Forgetting Over False Memory（对应修复方案 D015）
+
+Decision:
+如果无法确认历史信息，Yu 应承认「没有可靠记忆」，宁可忘记，也不能伪造过去。
+
+Reason:
+Memory Precision > Memory Recall > Memory Coverage。对 Personal AI，虚假的历史归因是 P0 级问题。
+
+## D027 — Explicit Memory Commands Override Inferred Routing
+
+Decision:
+用户明确表达的 Memory 命令（记住 / 保存 / 修改 / 忘掉 / 纠正）必须先于 Tool Router
+（Planner / Computer Context）由确定性 Intent Router 处理。Mentioning a capability is not
+requesting that capability；Declarative 陈述不得误触发 Tool。
+
+Reason:
+修复 Wrong Intent Routing：「记住：我只有一台华硕轻薄本。」曾被关键词路由误判。
+
+---
+
+## D028 — MemoryService Is The Single Write Path
+
+Decision:
+所有 Memory 写操作（Create / Update / Archive / Correct）必须经 MemoryService，禁止 LLM
+直接操作数据库。每次写操作返回标准化 MemoryResult，LLM 只能依据该结果回复。
+
+Reason:
+让「数据库真实结果」成为回答成功与否的唯一来源，杜绝「我觉得已保存」。
+
+---
+
+## D029 — Read-After-Write Verification Required
+
+Decision:
+所有 Memory Create / Update / Archive 必须执行 WRITE → 检查 affected_rows → 重新 SELECT →
+比较最终值，验证通过才返回 success。
+
+Reason:
+修复 Fake Update：affected_rows=0 时必须报告失败，禁止假装成功。
+
+---
+
+## D030 — Memory Update Requires memory_id
+
+Decision:
+Memory Update / Archive 必须基于 memory_id，禁止依赖完整文本匹配。指代解析
+（「修改这条」）在 1 条时直接绑定，多条时必须询问「你指的是哪一条」，禁止猜测。
+
+Reason:
+保证更新精确命中，避免误改；模糊指代必须由用户确认。
+
+---
+
+## D031 — No Verified Result, No Success Claim
+
+Decision:
+如果数据库操作未真实成功并经读后验证，Yu 禁止回复「已保存 / 已修改 / 已删除 / 已完成」。
+
+Reason:
+Memory Operation Verification Rate 目标 100%；成功声明必须可验证。

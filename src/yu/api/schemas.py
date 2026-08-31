@@ -17,6 +17,7 @@ class ChatRequest(BaseModel):
 
     message: str
     history: list[HistoryMessage] = Field(default_factory=list)
+    referenced_memory_ids: list[int] = Field(default_factory=list)
 
 
 class MemoryQueryRequest(BaseModel):
@@ -24,3 +25,17 @@ class MemoryQueryRequest(BaseModel):
 
     query: str
     limit: int = Field(default=8, ge=1, le=50)
+
+
+class MemoryCreateRequest(BaseModel):
+    """POST /api/memories 请求体。"""
+
+    content: str
+    type: str = "fact"
+    importance: str = "high"
+
+
+class MemoryUpdateRequest(BaseModel):
+    """POST /api/memories/{id}/update 请求体。"""
+
+    content: str

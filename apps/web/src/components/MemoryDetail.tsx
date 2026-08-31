@@ -51,6 +51,26 @@ export default function MemoryDetail({ memory, demo, mask, onClose }: Props) {
           <span className="md__key">STATUS</span>
           <span className="md__val">{memory.status}</span>
         </div>
+        <div className="md__row">
+          <span className="md__key">SOURCE</span>
+          <span className="md__val">{memory.source_type}</span>
+        </div>
+        <div className="md__row">
+          <span className="md__key">EVENT</span>
+          <span className="md__val">{memory.source_event_id != null ? "evt_" + memory.source_event_id : "—"}</span>
+        </div>
+        <div className="md__row">
+          <span className="md__key">VERIFIED</span>
+          <span className="md__val">{memory.verified ? "true" : "false"}</span>
+        </div>
+        <div className="md__row">
+          <span className="md__key">CONFIDENCE</span>
+          <span className="md__val">{memory.confidence}</span>
+        </div>
+        <div className="md__row">
+          <span className="md__key">UPDATED</span>
+          <span className="md__val">{memory.updated_at ? fmtDate(memory.updated_at) : "—"}</span>
+        </div>
       </div>
     </motion.aside>
   );

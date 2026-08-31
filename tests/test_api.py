@@ -116,3 +116,87 @@ def test_chat_memory_injects_context_with_provider():
     assert isinstance(r["retrieved"], list)
     assert fp.messages is not None
     assert fp.messages[0].role == "system"
+
+
+# ------------------------------------------------------------------ Memory Grounding (v0.0.7.2)
+
+
+class _FakeCtx:
+    def __init__(self, memory, audit, provider=None):
+        self.memory = memory
+        self.audit = audit
+        self.provider = provider
+
+
+def test_memory_serializer_has_provenance(client):
+    """GET /api/memories 必须返回 source_type / source_role / confidence / verified。"""
+    mem = client.get("/api/memories?limit=150")
+    assert mem.status_code == 200
+    body = mem.json()
+    if body["memories"]:
+        m = body["memories"][0]
+        for key in ("source_type", "source_role", "confidence", "verified", "source_event_id"):
+            assert key in m
+
+
+def test_chat_memory_probe_no_evidence(tmp_path):
+    """No-Evidence Question：无 verified 支撑时返回确定性回答。"""
+    from yu.api import app as api_app
+    from yu.audit.store import AuditStore
+    from yu.memory.provenance import NO_RELIABLE_MEMORY_REPLY
+    from yu.memory.store import MemoryStore
+
+    ctx = _FakeCtx(MemoryStore(tmp_path / "m.db"), AuditStore(tmp_path / "a.db"), provider=None)
+    try:
+        r = api_app._chat_memory(ctx, "我以前说过我膝盖疼吗？", [])
+    finally:
+        ctx.memory.close()
+        ctx.audit.close()
+
+    assert r["kind"] == "chat"
+    assert r["reply"] == NO_RELIABLE_MEMORY_REPLY
+    assert r["memory_probe"] is True
+
+
+def test_chat_memory_correction_flow(tmp_path):
+    """用户纠正 -> MemoryCorrectionService 作废错误记忆。"""
+    from yu.api import app as api_app
+    from yu.audit.store import AuditStore
+    from yu.memory.store import MemoryStore
+
+    ctx = _FakeCtx(MemoryStore(tmp_path / "m.db"), AuditStore(tmp_path / "a.db"), provider=None)
+    try:
+        ctx.memory.add_user_memory("fact", "用户膝盖疼")
+        r = api_app._chat_memory(ctx, "我没说过膝盖疼。", [])
+    finally:
+        ctx.memory.close()
+        ctx.audit.close()
+
+    assert r["memory_correction"] == "invalidated"
+
+
+def test_chat_memory_guard_flags_unsupported_claim(tmp_path):
+    """回复含无证据历史归因 -> 记录 MEMORY_CLAIM_UNSUPPORTED 审计。"""
+    from yu.api import app as api_app
+    from yu.audit.store import AuditStore
+    from yu.llm import LLMResponse
+    from yu.memory.provenance import AUDIT_MEMORY_CLAIM_UNSUPPORTED
+    from yu.memory.store import MemoryStore
+
+    class FakeProvider:
+        name = "fake"
+
+        def chat(self, messages):
+            return LLMResponse(content="你之前提到膝盖偶尔会不舒服，建议注意。")
+
+    ctx = _FakeCtx(MemoryStore(tmp_path / "m.db"), AuditStore(tmp_path / "a.db"), provider=FakeProvider())
+    try:
+        r = api_app._chat_memory(ctx, "我要去爬山，给我建议。", [])
+        audit_events = ctx.audit.list_recent(50)
+    finally:
+        ctx.memory.close()
+        ctx.audit.close()
+
+    assert r["memory_claims"]
+    assert any(not c["supported"] for c in r["memory_claims"])
+    assert any(e.event_type == AUDIT_MEMORY_CLAIM_UNSUPPORTED for e in audit_events)

@@ -14,6 +14,7 @@ from typing import Optional
 
 from .entities.store import EntitiesStore
 from .llm import ChatMessage, LLMProvider
+from .memory.retrieval import format_memory_line
 from .memory.store import MemoryStore
 
 _DAILY_SCHEMA = """
@@ -39,6 +40,9 @@ DAILY_SUMMARY_SYSTEM_PROMPT = (
     "遇到的问题：...\n"
     "当前项目状态：...\n"
     "明天建议：..."
+    "Memory Grounding：只把 [USER_EXPLICIT]/[USER_CONFIRMED] 的记忆当作用户事实；"
+    "标注为 SUMMARY_DERIVED / ASSISTANT_INFERENCE / UNKNOWN 的内容不得写进「用户说过/做过」；"
+    "不要用「你昨天说过」等措辞归因到未经证实的记忆。没有证据就写「无」。"
 )
 
 
@@ -140,7 +144,7 @@ def gather_daily_data(store: MemoryStore, entities: EntitiesStore) -> str:
 
     memories = store.list_memories()[-10:]
     if memories:
-        parts.append("## 记忆\n" + "\n".join(f"- {m.content}" for m in memories))
+        parts.append("## 记忆（带来源标签，仅 USER_EXPLICIT/USER_CONFIRMED 是用户事实）\n" + "\n".join(format_memory_line(m) for m in memories))
 
     if not parts:
         return "（当天暂无数据）"

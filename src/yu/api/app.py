@@ -39,11 +39,30 @@ from ..daily import today_date
 from ..entities.models import Decision, Goal, Project, Task
 from ..llm import ChatMessage, LLMError
 from ..llm.conversation import DEFAULT_SYSTEM_PROMPT
+from ..memory.correction import MemoryCorrectionService, is_correction
+from ..memory.guard import MemoryAttributionGuard, has_verified_support
 from ..memory.models import Memory
-from ..memory.retrieval import build_context as build_memory_context
+from ..memory.provenance import (
+    AUDIT_MEMORY_CLAIM_UNSUPPORTED,
+    NO_RELIABLE_MEMORY_REPLY,
+    is_memory_probe,
+    memory_debug_emit,
+    memory_debug_enabled,
+)
+from ..memory.retrieval import build_context as build_memory_context, memory_debug_trace
+from ..memory.router import (
+    MEMORY_ARCHIVE,
+    MEMORY_CORRECT,
+    MEMORY_CREATE,
+    MEMORY_READ,
+    MEMORY_SEARCH,
+    MEMORY_UPDATE,
+    detect_memory_intent,
+)
+from ..memory.service import MemoryService
 from ..planner import build_plan, is_plan_request
 from .context import AppContext, build_context
-from .schemas import ChatRequest, MemoryQueryRequest
+from .schemas import ChatRequest, MemoryCreateRequest, MemoryQueryRequest, MemoryUpdateRequest
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _DEFAULT_DIST = _REPO_ROOT / "apps" / "web" / "dist"
@@ -61,7 +80,12 @@ def _mem(m: Memory) -> dict[str, Any]:
         "importance": m.importance,
         "status": m.status,
         "source_event_id": m.source_event_id,
+        "source_type": m.source_type,
+        "source_role": m.source_role,
+        "confidence": m.confidence,
+        "verified": m.verified,
         "created_at": m.created_at,
+        "updated_at": m.updated_at,
         "archived_at": m.archived_at,
     }
 
@@ -152,10 +176,119 @@ def _chat_computer(ctx: AppContext, message: str) -> dict[str, Any]:
     return _reply("computer", advice)
 
 
+def _emit_debug(matches: list[Any]) -> None:
+    """YU_MEMORY_DEBUG=1 时打印检索溯源（不含 API Key / Secret）。"""
+    import sys
+
+    print(memory_debug_trace(matches), file=sys.stderr)
+
+
+def _chat_correction(ctx: AppContext, message: str) -> dict[str, Any]:
+    """用户纠正（「我没说过……」）→ MemoryCorrectionService。"""
+    service = MemoryCorrectionService(ctx.memory, ctx.audit)
+    result = service.handle_correction(message)
+    if result.kind == "invalidated":
+        reply = f"明白了，我已作废这条错误记忆（{result.target_memory_id}）。"
+    else:
+        reply = NO_RELIABLE_MEMORY_REPLY
+    return _reply("chat", reply, memory_correction=result.kind)
+
+
+def _format_create_reply(result) -> str:
+    if result.success:
+        return f"已保存。Memory ID: {result.memory_id}"
+    return "保存失败：" + result.reason
+
+
+def _format_memory_list(memories: list[Memory]) -> str:
+    if not memories:
+        return "（暂无记忆）"
+    return "\n".join(f"[{m.id}] ({m.source_type}) {m.content}" for m in memories)
+
+
+def _format_retrieval_list(matches: list[Any]) -> str:
+    if not matches:
+        return "（未检索到相关记忆）"
+    return "\n".join(f"[{m.id}] {m.content}" for m, _ in matches)
+
+
+def _chat_memory_command(ctx: AppContext, intent, referenced_ids: list[int]) -> dict[str, Any]:
+    """Explicit Memory Command -> MemoryService（确定性，不依赖 LLM）。"""
+    service = MemoryService(ctx.memory, ctx.audit)
+    kind = intent.intent
+
+    memory_debug_emit(
+        INPUT=intent.payload, INTENT=kind, ROUTER_RESULT="memory-pipeline",
+        REFERENCED_MEMORY_IDS=list(referenced_ids or []),
+    )
+
+    if kind == MEMORY_CREATE:
+        result = service.create(intent.payload)
+        return _reply(
+            "chat", _format_create_reply(result),
+            intent=MEMORY_CREATE, memory_result=result.to_dict(),
+        )
+
+    if kind == MEMORY_UPDATE:
+        resolution = service.resolve_reference(referenced_ids, ctx.memory.list_memories())
+        if resolution.memory_id is None:
+            return _reply("chat", resolution.reason, intent=MEMORY_UPDATE)
+        result = service.update(resolution.memory_id, intent.payload)
+        reply = "已更新。" if result.success else "修改失败：" + result.reason
+        return _reply("chat", reply, intent=MEMORY_UPDATE, memory_result=result.to_dict())
+
+    if kind == MEMORY_ARCHIVE:
+        resolution = service.resolve_reference(referenced_ids, ctx.memory.list_memories())
+        if resolution.memory_id is None:
+            return _reply("chat", resolution.reason, intent=MEMORY_ARCHIVE)
+        result = service.archive(resolution.memory_id)
+        reply = "已归档（不再参与检索）。" if result.success else "归档失败：" + result.reason
+        return _reply("chat", reply, intent=MEMORY_ARCHIVE, memory_result=result.to_dict())
+
+    if kind == MEMORY_CORRECT:
+        result = service.correct(intent.payload)
+        if result.kind == "invalidated":
+            reply = f"明白了，我已作废这条错误记忆（{result.target_memory_id}）。"
+        else:
+            reply = NO_RELIABLE_MEMORY_REPLY
+        return _reply("chat", reply, memory_correction=result.kind, intent=MEMORY_CORRECT)
+
+    if kind == MEMORY_READ:
+        return _reply("chat", _format_memory_list(ctx.memory.list_memories()), intent=MEMORY_READ)
+
+    if kind == MEMORY_SEARCH:
+        matches = ctx.memory.retrieve(intent.payload, limit=8)
+        retrieved = [{"memory": _mem(m), "score": s} for m, s in matches]
+        return _reply(
+            "chat", _format_retrieval_list(matches),
+            retrieved=retrieved, intent=MEMORY_SEARCH,
+        )
+
+    return _chat_memory(ctx, intent.payload, [])
+
+
 def _chat_memory(ctx: AppContext, message: str, history: list[Any]) -> dict[str, Any]:
     """默认对话：检索长期记忆 -> 注入上下文 -> 经 Yu Core 调用 LLM。"""
+    # 1. 用户纠正错误记忆（Correction Flow）。
+    if is_correction(message):
+        return _chat_correction(ctx, message)
+
+    # 2. No-Evidence Question（「我以前说过 X 吗？」）——无 verified 支撑时确定性回答。
+    if is_memory_probe(message):
+        verified = ctx.memory.list_verified_memories()
+        if not has_verified_support(message, verified):
+            return _reply("chat", NO_RELIABLE_MEMORY_REPLY, memory_probe=True)
+
     matches = ctx.memory.retrieve(message, limit=5)
     retrieved = [{"memory": _mem(m), "score": s} for m, s in matches]
+
+    if memory_debug_enabled():
+        memory_debug_emit(
+            INPUT=message, INTENT="GENERAL_CHAT", ROUTER_RESULT="memory-search",
+            RETRIEVED_MEMORY_IDS=[m.id for m, _ in matches],
+            SOURCE_TYPES=[m.source_type for m, _ in matches],
+        )
+        _emit_debug(matches)
 
     if ctx.provider is None:
         return _reply(
@@ -173,11 +306,28 @@ def _chat_memory(ctx: AppContext, message: str, history: list[Any]) -> dict[str,
         request_messages.append(ChatMessage(role=role, content=m.content))
     request_messages.append(ChatMessage(role="user", content=message))
 
+    if memory_debug_enabled():
+        memory_debug_emit(FINAL_LLM_CONTEXT=context_text or "(no memory context)")
+
     try:
         reply = ctx.provider.chat(request_messages)
     except LLMError as e:
         return _reply("error", f"[错误] {e}", retrieved=retrieved, reason=str(e))
-    return _reply("chat", reply.content, retrieved=retrieved)
+
+    # 3. Attribution Guard：检测回复中的历史归因是否有 verified 证据。
+    verdict = MemoryAttributionGuard().check(reply.content, [m for m, _ in matches])
+    claims = [
+        {"text": c, "supported": c not in verdict.unsupported_claims}
+        for c in verdict.claims
+    ]
+    if verdict.needs_block:
+        ctx.audit.record(
+            event_type=AUDIT_MEMORY_CLAIM_UNSUPPORTED,
+            actor="yu",
+            reason="回复包含无 verified 记忆支撑的历史归因",
+            metadata={"unsupported_claims": verdict.unsupported_claims},
+        )
+    return _reply("chat", reply.content, retrieved=retrieved, memory_claims=claims)
 
 
 def _reply(
@@ -186,6 +336,11 @@ def _reply(
     retrieved: list[dict[str, Any]] | None = None,
     allowed: bool = True,
     reason: str = "",
+    memory_claims: list[dict[str, Any]] | None = None,
+    memory_correction: str = "",
+    memory_probe: bool = False,
+    intent: str = "",
+    memory_result: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "kind": kind,
@@ -193,6 +348,11 @@ def _reply(
         "retrieved": retrieved or [],
         "allowed": allowed,
         "reason": reason,
+        "memory_claims": memory_claims or [],
+        "memory_correction": memory_correction,
+        "memory_probe": memory_probe,
+        "intent": intent,
+        "memory_result": memory_result,
     }
 
 
@@ -303,10 +463,12 @@ def create_app() -> FastAPI:
             by_type[m.type] = by_type.get(m.type, 0) + 1
             by_importance[m.importance] = by_importance.get(m.importance, 0) + 1
         active = sum(1 for m in ms if m.status == "active")
+        verified = sum(1 for m in ms if m.verified)
         return {
             "total": len(ms),
             "active": active,
             "archived": len(ms) - active,
+            "verified": verified,
             "by_type": by_type,
             "by_importance": by_importance,
         }
@@ -319,6 +481,27 @@ def create_app() -> FastAPI:
             "query": body.query,
             "matches": [{"memory": _mem(m), "score": s} for m, s in matches],
         }
+
+    @app.post("/api/memories")
+    async def create_memory(request: Request, body: MemoryCreateRequest) -> dict[str, Any]:
+        ctx = _ctx(request)
+        result = MemoryService(ctx.memory, ctx.audit).create(body.content, body.type, body.importance)
+        memory = ctx.memory.get_memory(result.memory_id) if result.success and result.memory_id else None
+        return {"result": result.to_dict(), "memory": _mem(memory) if memory else None}
+
+    @app.post("/api/memories/{memory_id}/update")
+    async def update_memory(request: Request, memory_id: int, body: MemoryUpdateRequest) -> dict[str, Any]:
+        ctx = _ctx(request)
+        result = MemoryService(ctx.memory, ctx.audit).update(memory_id, body.content)
+        memory = ctx.memory.get_memory(memory_id)
+        return {"result": result.to_dict(), "memory": _mem(memory) if memory else None}
+
+    @app.post("/api/memories/{memory_id}/archive")
+    async def archive_memory(request: Request, memory_id: int) -> dict[str, Any]:
+        ctx = _ctx(request)
+        result = MemoryService(ctx.memory, ctx.audit).archive(memory_id)
+        memory = ctx.memory.get_memory(memory_id)
+        return {"result": result.to_dict(), "memory": _mem(memory) if memory else None}
 
     # ------------------------------------------------------------------ system
 
@@ -348,6 +531,11 @@ def create_app() -> FastAPI:
         message = body.message.strip()
         if not message:
             raise HTTPException(status_code=400, detail="message 不能为空")
+
+        # 1. Explicit Memory Command 优先（Explicit Intent > Inferred Routing）。
+        intent = detect_memory_intent(message)
+        if intent is not None:
+            return _chat_memory_command(ctx, intent, body.referenced_memory_ids)
 
         if is_plan_request(message):
             return _chat_plan(ctx, message)

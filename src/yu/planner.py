@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from .entities.store import EntitiesStore
 from .llm import ChatMessage, LLMProvider
+from .memory.retrieval import format_memory_line
 from .memory.store import MemoryStore
 
 PLANNER_SYSTEM_PROMPT = (
@@ -28,6 +29,8 @@ PLANNER_SYSTEM_PROMPT = (
     "可选任务：...\n"
     "今天不要做什么：...\n"
     "原因：..."
+    "Memory Grounding：近期记忆按来源标注，仅 USER_EXPLICIT/USER_CONFIRMED 是用户明确表达的事实；"
+    "不要用「你之前说过」归因到推断、摘要或未验证的记忆；普通建议用「如果……」措辞。"
 )
 
 
@@ -68,7 +71,7 @@ def gather_context(store: MemoryStore, entities: EntitiesStore) -> str:
 
     memories = store.list_memories()[-10:]
     if memories:
-        parts.append("## 近期记忆\n" + "\n".join(f"- {m.content}" for m in memories))
+        parts.append("## 近期记忆（带来源标签，仅 USER_EXPLICIT/USER_CONFIRMED 是用户事实）\n" + "\n".join(format_memory_line(m) for m in memories))
 
     if not parts:
         return "（当前没有目标、任务、项目或记忆。）"

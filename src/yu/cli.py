@@ -35,7 +35,25 @@ from .authority.shutdown import ShutdownController
 from .daily import DailyLogStore, build_daily_summary, today_date
 from .entities.store import EntitiesStore
 from .llm import ChatMessage, Conversation, LLMError, create_provider
-from .memory.retrieval import build_context
+from .memory.correction import MemoryCorrectionService, is_correction
+from .memory.guard import MemoryAttributionGuard, has_verified_support
+from .memory.provenance import (
+    AUDIT_MEMORY_CLAIM_UNSUPPORTED,
+    NO_RELIABLE_MEMORY_REPLY,
+    is_memory_probe,
+    memory_debug_enabled,
+)
+from .memory.retrieval import build_context, memory_debug_trace
+from .memory.router import (
+    MEMORY_ARCHIVE,
+    MEMORY_CORRECT,
+    MEMORY_CREATE,
+    MEMORY_READ,
+    MEMORY_SEARCH,
+    MEMORY_UPDATE,
+    detect_memory_intent,
+)
+from .memory.service import MemoryService
 from .memory.store import MemoryStore
 from .planner import build_plan, is_plan_request
 from .safety.constitution import SafetyConstitution
@@ -77,6 +95,7 @@ def main(argv: list[str] | None = None) -> int:
     shutdown = ShutdownController(audit)
     provider = _build_provider()
     conversation = Conversation()
+    last_ref: list[int] = []
 
     try:
         while True:
@@ -130,15 +149,16 @@ def main(argv: list[str] | None = None) -> int:
                 _show_daily_logs(daily)
             elif command in ("电脑状态", "系统状态"):
                 _computer_status(kernel, provider)
-            elif command.startswith("记住："):
-                _record(store, command[len("记住："):].strip())
             else:
-                if is_plan_request(command):
+                intent = detect_memory_intent(command)
+                if intent is not None:
+                    _memory_command(store, audit, intent, last_ref)
+                elif is_plan_request(command):
                     _plan(store, entities, provider)
                 elif is_computer_request(command):
                     _computer_status(kernel, provider)
                 else:
-                    _chat(store, provider, conversation, command)
+                    _chat(store, provider, conversation, command, audit, last_ref)
     finally:
         store.close()
         entities.close()
@@ -156,11 +176,34 @@ def _build_provider():
         return None
 
 
-def _chat(store: MemoryStore, provider, conversation: Conversation, text: str) -> None:
+def _chat(store: MemoryStore, provider, conversation: Conversation, text: str, audit=None, last_ref=None) -> None:
+    # 1. 用户纠正（Correction Flow）。
+    if is_correction(text) and audit is not None:
+        result = MemoryCorrectionService(store, audit).handle_correction(text)
+        if result.kind == "invalidated":
+            print(f"明白了，我已作废这条错误记忆（{result.target_memory_id}）。")
+        else:
+            print(NO_RELIABLE_MEMORY_REPLY)
+        return
+
+    # 2. No-Evidence Question 确定性回答。
+    if is_memory_probe(text):
+        if not has_verified_support(text, store.list_verified_memories()):
+            print(NO_RELIABLE_MEMORY_REPLY)
+            return
+
     if provider is None:
         print("未配置 LLM Provider（缺少 DEEPSEEK_API_KEY），无法对话。")
         return
-    context = build_context(store.retrieve(text, limit=5))
+
+    matches = store.retrieve(text, limit=5)
+    if last_ref is not None:
+        last_ref[:] = [m.id for m, _ in matches]
+    if memory_debug_enabled():
+        import sys
+        print(memory_debug_trace(matches), file=sys.stderr)
+
+    context = build_context(matches)
     base = conversation.as_messages()
     request = [base[0]]
     if context:
@@ -172,6 +215,17 @@ def _chat(store: MemoryStore, provider, conversation: Conversation, text: str) -
     except LLMError as e:
         print(f"[错误] {e}")
         return
+
+    # 3. Attribution Guard：无证据的历史归因记入审计。
+    verdict = MemoryAttributionGuard().check(reply.content, [m for m, _ in matches])
+    if verdict.needs_block and audit is not None:
+        audit.record(
+            event_type=AUDIT_MEMORY_CLAIM_UNSUPPORTED,
+            actor="yu",
+            reason="回复包含无 verified 记忆支撑的历史归因",
+            metadata={"unsupported_claims": verdict.unsupported_claims},
+        )
+
     conversation.add_user(text)
     conversation.add_assistant(reply.content)
     print(reply.content)
@@ -245,13 +299,46 @@ def _computer_status(kernel: SafetyKernel, provider) -> None:
     print(advice)
 
 
-def _record(store: MemoryStore, content: str) -> None:
-    if not content:
-        print("内容为空，未记录。")
-        return
-    memory = store.remember(content)
-    print("已记录。")
-    print(f"Memory ID: {memory.id}")
+def _memory_command(store: MemoryStore, audit: AuditStore, intent, last_ref: list[int]) -> None:
+    """确定性 Memory 命令 -> MemoryService（不依赖 LLM）。"""
+    service = MemoryService(store, audit)
+    kind = intent.intent
+
+    if kind == MEMORY_CREATE:
+        result = service.create(intent.payload)
+        if result.success:
+            print(f"已保存。Memory ID: {result.memory_id}")
+        else:
+            print("保存失败：" + result.reason)
+    elif kind == MEMORY_UPDATE:
+        resolution = service.resolve_reference(last_ref, store.list_memories())
+        if resolution.memory_id is None:
+            print(resolution.reason)
+            return
+        result = service.update(resolution.memory_id, intent.payload)
+        print("已更新。" if result.success else "修改失败：" + result.reason)
+    elif kind == MEMORY_ARCHIVE:
+        resolution = service.resolve_reference(last_ref, store.list_memories())
+        if resolution.memory_id is None:
+            print(resolution.reason)
+            return
+        result = service.archive(resolution.memory_id)
+        print("已归档（不再参与检索）。" if result.success else "归档失败：" + result.reason)
+    elif kind == MEMORY_CORRECT:
+        result = service.correct(intent.payload)
+        if result.kind == "invalidated":
+            print(f"明白了，我已作废这条错误记忆（{result.target_memory_id}）。")
+        else:
+            print(NO_RELIABLE_MEMORY_REPLY)
+    elif kind == MEMORY_READ:
+        _show_memories(store)
+    elif kind == MEMORY_SEARCH:
+        matches = store.retrieve(intent.payload, limit=8)
+        if not matches:
+            print("（未检索到相关记忆）")
+            return
+        for m, _ in matches:
+            print(f"[{m.id}] {m.content}")
 
 
 def _show_memories(store: MemoryStore) -> None:

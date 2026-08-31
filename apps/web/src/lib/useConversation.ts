@@ -8,7 +8,8 @@ function nextId(): string {
   return "m" + Date.now().toString(36) + "-" + seq;
 }
 
-function intentOf(text: string): "planning" | "system_analysis" | "thinking" {
+function intentOf(text: string): "remembering" | "planning" | "system_analysis" | "thinking" {
+  if (/记住|保存|修改.*记忆|更新.*记忆|忘掉|纠正|加入记忆/.test(text)) return "remembering";
   if (text.includes("今天") && /干什么|做什么|该做|计划|规划/.test(text)) return "planning";
   if ((text.includes("电脑") || text.includes("系统")) && /状态|卡|内存|磁盘|cpu|为什么|运行|怎么样|分析/.test(text)) {
     return "system_analysis";
@@ -25,11 +26,12 @@ export interface ConversationApi {
 }
 
 /** Cockpit 对话状态机：Mode（idle/conversation）与 YuUIState 分离。 */
-export function useConversation(reduced: boolean): ConversationApi {
+export function useConversation(reduced: boolean, onMemoryChanged?: () => void): ConversationApi {
   const [messages, setMessages] = useState<Message[]>([]);
   const [uiState, setUiState] = useState<YuUIState>("idle");
   const [busy, setBusy] = useState(false);
   const historyRef = useRef<HistoryMessage[]>([]);
+  const lastReferencedRef = useRef<number[]>([]);
   const busyRef = useRef(false);
 
   const submit = useCallback(
@@ -43,13 +45,21 @@ export function useConversation(reduced: boolean): ConversationApi {
       setUiState(intentOf(t));
 
       api
-        .chat(t, historyRef.current)
+        .chat(t, historyRef.current, lastReferencedRef.current)
         .then((res) => {
           historyRef.current = [
             ...historyRef.current,
             { role: "user", content: t },
             { role: "assistant", content: res.reply },
           ].slice(-20);
+
+          // 记录本轮引用的记忆 id，供「修改这条记忆」等指代解析。
+          lastReferencedRef.current = res.retrieved.map((m) => m.memory.id);
+
+          // 记忆写操作成功后通知上层刷新（memory count / 列表）。
+          if (res.intent && res.intent.startsWith("MEMORY_") && res.memory_result?.success) {
+            onMemoryChanged?.();
+          }
 
           const append = () => {
             setMessages((prev) => [
@@ -79,7 +89,7 @@ export function useConversation(reduced: boolean): ConversationApi {
           setUiState("error");
         });
     },
-    [reduced],
+    [reduced, onMemoryChanged],
   );
 
   const mode = messages.length > 0 ? "conversation" : "idle";
