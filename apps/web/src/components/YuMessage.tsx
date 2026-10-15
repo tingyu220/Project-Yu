@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Message } from "../lib/types";
 import Markdown from "./Markdown";
+import SpeakButton from "./SpeakButton";
 
 const LONG_THRESHOLD = 1400;
 const PREVIEW_LENGTH = 600;
@@ -8,9 +9,10 @@ const PREVIEW_LENGTH = 600;
 interface YuMessageProps {
   message: Message;
   mask: (s: string) => string;
+  voiceActive?: boolean;
 }
 
-export default function YuMessage({ message, mask }: YuMessageProps) {
+export default function YuMessage({ message, mask, voiceActive = false }: YuMessageProps) {
   const [expanded, setExpanded] = useState(false);
   const isLong = message.content.length > LONG_THRESHOLD;
   const collapsed = isLong && !expanded;
@@ -19,6 +21,7 @@ export default function YuMessage({ message, mask }: YuMessageProps) {
     <div className="msg msg--yu">
       <div className="msg__label">YU</div>
       <div className="msg__body">
+        <SpeakButton text={mask(message.content)} disabled={voiceActive} />
         {message.kind === "error" ? (
           <div className="msg__error">{message.content}</div>
         ) : collapsed ? (

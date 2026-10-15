@@ -1,0 +1,20 @@
+# 项目路径必须由用户显式绑定，不搜索硬盘、不猜测路径。
+paths:
+  downloads:
+    display_name: 下载文件夹
+    aliases:
+      - 下载
+      - 下载文件夹
+    path: "%USERPROFILE%/Downloads"
+  project_yu:
+    display_name: Yu项目
+    aliases:
+      - Yu项目
+      - Project Yu
+    path: "D:/田雨/Yu"
+  creative_os:
+    display_name: Creative OS
+    aliases:
+      - Creative OS
+      - 创作OS
+    path: "D:/田雨/Creative OS"

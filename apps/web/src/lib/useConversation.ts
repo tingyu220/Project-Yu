@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
-import type { HistoryMessage, Message, YuUIState } from "./types";
+import type { ConversationTurn, HistoryMessage, Message, YuUIState } from "./types";
+import { mergeTurns, pollDelay } from "./conversationSync";
 
 let seq = 0;
 function nextId(): string {
@@ -22,30 +23,68 @@ export interface ConversationApi {
   mode: "idle" | "conversation";
   uiState: YuUIState;
   busy: boolean;
-  submit: (text: string) => void;
+  submit: (text: string) => Promise<void>;
 }
 
 /** Cockpit 对话状态机：Mode（idle/conversation）与 YuUIState 分离。 */
-export function useConversation(reduced: boolean, onMemoryChanged?: () => void): ConversationApi {
+export function useConversation(_reduced: boolean, onMemoryChanged?: () => void): ConversationApi {
   const [messages, setMessages] = useState<Message[]>([]);
   const [uiState, setUiState] = useState<YuUIState>("idle");
   const [busy, setBusy] = useState(false);
   const historyRef = useRef<HistoryMessage[]>([]);
   const lastReferencedRef = useRef<number[]>([]);
   const busyRef = useRef(false);
+  const sessionRef = useRef<string | undefined>(undefined);
+  const cursorRef = useRef(0);
+  const turnsRef = useRef<ConversationTurn[]>([]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let timer: number | undefined;
+    const sync = async () => {
+      try {
+        if (!sessionRef.current) sessionRef.current = (await api.conversation()).session_id;
+        let page = await api.conversationChanges(cursorRef.current, controller.signal);
+        turnsRef.current = mergeTurns(turnsRef.current, page.turns);
+        cursorRef.current = page.next_cursor;
+        while (page.has_more) {
+          page = await api.conversationChanges(cursorRef.current, controller.signal);
+          turnsRef.current = mergeTurns(turnsRef.current, page.turns);
+          cursorRef.current = page.next_cursor;
+        }
+        const restored: Message[] = [];
+        for (const turn of turnsRef.current) {
+          if (turn.state !== "completed" || !turn.result) continue;
+          restored.push({id: `turn-${turn.seq}-user`, role: "user", content: turn.message, createdAt: Date.parse(turn.created_at)});
+          restored.push({id: `turn-${turn.seq}-yu`, role: "yu", content: turn.result.reply, kind: turn.result.kind, retrieved: turn.result.retrieved, createdAt: Date.parse(turn.completed_at || turn.created_at)});
+        }
+        setMessages(prev => {
+          const local = prev.filter(item => !item.id.startsWith("turn-"));
+          return restored.length ? [...restored, ...local.filter(item => !restored.some(r => r.content === item.content && r.role === item.role))] : prev;
+        });
+      } catch (error) {
+        if (!controller.signal.aborted) timer = window.setTimeout(sync, pollDelay(document.hidden));
+        return;
+      }
+      if (!controller.signal.aborted) timer = window.setTimeout(sync, pollDelay(document.hidden));
+    };
+    void sync();
+    return () => { controller.abort(); if (timer) window.clearTimeout(timer); };
+  }, []);
 
   const submit = useCallback(
     (text: string) => {
       const t = text.trim();
-      if (!t || busyRef.current) return;
+      if (!t) return Promise.resolve();
+      if (busyRef.current) return Promise.reject(new Error("上一条消息仍在处理。"));
       busyRef.current = true;
 
       setMessages((prev) => [...prev, { id: nextId(), role: "user", content: t, createdAt: Date.now() }]);
       setBusy(true);
       setUiState(intentOf(t));
 
-      api
-        .chat(t, historyRef.current, lastReferencedRef.current)
+      return api
+        .chat(t, [], lastReferencedRef.current, sessionRef.current, `web-${Date.now()}-${seq}`, "web")
         .then((res) => {
           historyRef.current = [
             ...historyRef.current,
@@ -69,15 +108,12 @@ export function useConversation(reduced: boolean, onMemoryChanged?: () => void):
             setBusy(false);
             busyRef.current = false;
             setUiState("answering");
-            window.setTimeout(() => setUiState("ready"), 1400);
+            window.setTimeout(() => { if (!busyRef.current) setUiState("ready"); }, 1400);
           };
 
-          if (res.retrieved.length > 0 && !reduced) {
-            setUiState("remembering");
-            window.setTimeout(append, 1000);
-          } else {
-            append();
-          }
+          // 不为视觉状态增加人工等待，语音下一句可立即接续。
+          append();
+          return res;
         })
         .catch((e: unknown) => {
           setMessages((prev) => [
@@ -87,9 +123,17 @@ export function useConversation(reduced: boolean, onMemoryChanged?: () => void):
           setBusy(false);
           busyRef.current = false;
           setUiState("error");
+          throw e;
+        })
+        .then((res) => {
+          // HTTP 成功不代表业务成功；已展示真实回复，再通知语音队列停下。
+          if (!res.allowed || res.kind === "error" || res.memory_result?.success === false) {
+            setUiState("error");
+            throw new Error(res.reply);
+          }
         });
     },
-    [reduced, onMemoryChanged],
+    [onMemoryChanged],
   );
 
   const mode = messages.length > 0 ? "conversation" : "idle";

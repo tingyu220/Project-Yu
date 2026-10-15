@@ -42,6 +42,7 @@ CAPABILITY_RISK: dict[str, RiskLevel] = {
     "file.write": RiskLevel.R2,
     "process.read": RiskLevel.R0,
     "process.start": RiskLevel.R2,
+    "media.control": RiskLevel.R1,
     "process.stop": RiskLevel.R2,
     "network.read": RiskLevel.R0,
     "network.request": RiskLevel.R3,
@@ -59,6 +60,7 @@ CAPABILITY_RISK: dict[str, RiskLevel] = {
 
 # 用于展示的已知能力列表（有序）
 KNOWN_CAPABILITIES: list[str] = [
+    "media.control",
     "conversation.read",
     "memory.read",
     "memory.write",

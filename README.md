@@ -2,7 +2,7 @@
 
 Yu 是一个运行于 Windows PC 的长期个人决策助手，通过持续记忆用户的目标、任务、经历和决策，帮助用户规划生活、学习与工作，并能够读取基础计算机状态。
 
-当前目标版本：**Yu v0.1.0**（开发中，当前处于 Memory Kernel 阶段）。
+当前目标版本：**Yu v0.0.9**（Action MVP / Windows First）。
 
 ## 项目定位
 
@@ -15,6 +15,31 @@ Yu 是一个运行于 Windows PC 的长期个人决策助手，通过持续记�
 - **Memory First**：第一优先级永远是「记忆是否可靠」。
 - **Small Steps**：按版本小步推进，每阶段：设计 → 开发 → 测试 → 体验 → 验收 → Git Commit。
 - **AI 不负责自己宣布成功**：验收依据 = 实际运行结果 + pytest + 用户体验 + 开发状态报告。
+- **LLM 不直接执行**：确定性动作必须经过 Router → Safety Kernel → Executor → Audit。
+
+## v0.0.9 Action MVP
+
+当前支持 Windows 本地的确定性动作：
+
+- `app.open`：打开显式配置的应用；
+- `path.open`：打开显式配置的文件夹或明确 Windows 路径；
+- `file.open`：打开存在的明确文件。
+
+应用和项目路径分别配置在 `config/windows_apps.yaml`、`config/windows_paths.yaml`。启动应用前必须配置真实路径，
+`process.start` 保持 Default Deny，不会由 LLM 猜测路径或执行任意命令。
+
+本机已核验并配置 QQ音乐、Chrome、下载目录、Creative OS 和 Yu项目。Obsidian 仍需填写路径。
+在 PowerShell 7 中进入项目目录后，显式授权当前启动会话：
+
+```powershell
+$env:YU_ALLOW_LOCAL_OPEN = '1'
+.\.venv\Scripts\python.exe -m yu.api
+```
+
+随后在 Yu Web 输入 `打开QQ音乐` 或 `打开下载文件夹`。CLI 使用同一环境变量，
+启动命令为 `.\.venv\Scripts\python.exe -m yu.cli`。关闭进程并移除该环境变量后重启即恢复默认拒绝。
+授权只从本机启动环境读取，聊天请求不能自行授权。文件打开仅支持常见文档、图片和音视频格式，
+脚本和快捷方式不允许通过文件打开执行。
 
 ## V0.1 DOES（必须实现）
 
@@ -25,10 +50,11 @@ Yu 是一个运行于 Windows PC 的长期个人决策助手，通过持续记�
 - 根据长期目标和当前状态生成每日计划，并生成 Daily Summary
 - 查看 CPU、内存、磁盘、电池、进程等电脑状态，并基于状态给出建议
 - 提供一个能够日常使用的 Windows 桌面界面
+- 通过 Safety Kernel 安全执行已授权的本地打开动作
 
 ## V0.1 DOES NOT（明确不实现）
 
-语音交互、手机 App、Web 多端同步、摄像头、实时屏幕视觉、自动控制鼠标键盘、自动删除文件、自动关闭程序、自动修改 Windows、多 Agent 系统、自主编程、自主修改 Yu 核心代码、自主进化、AGI、大型本地模型、复杂知识图谱、复杂 RAG、自建向量数据库、智能家居、3D Avatar、情绪识别。
+语音交互、手机 App、Web 多端同步、摄像头、实时屏幕视觉、自动控制鼠标键盘、UI Automation、自动删除文件、自动关闭程序、自动修改 Windows、多 Agent 系统、自主编程、自主修改 Yu 核心代码、自主进化、AGI、大型本地模型、复杂知识图谱、复杂 RAG、自建向量数据库、智能家居、3D Avatar、情绪识别。
 
 > 若开发中发现上述方向有价值，记录到 `RESEARCH_BACKLOG.md`，不加入当前版本。
 
@@ -40,7 +66,7 @@ Python · SQLite · pytest · psutil · PySide6 · Git · GitHub · LLM Provider
 
 ## 版本路线
 
-`v0.0.0 Bootstrap → v0.0.1 Memory Kernel → v0.0.2 LLM Conversation → v0.0.2.1 Authority & Safety Kernel → v0.0.3 Memory Retrieval → v0.0.4 Goals/Tasks/Decisions/Projects → v0.0.5 Daily Planner → v0.0.6 Daily Summary → v0.0.7 Computer Context → v0.0.8 Desktop UI → Production Test → v0.1.0`
+`v0.0.0 Bootstrap → v0.0.1 Memory Kernel → v0.0.2 LLM Conversation → v0.0.2.1 Authority & Safety Kernel → v0.0.3 Memory Retrieval → v0.0.4 Goals/Tasks/Decisions/Projects → v0.0.5 Daily Planner → v0.0.6 Daily Summary → v0.0.7 Computer Context → v0.0.8 Desktop UI → v0.0.9 Action MVP → v0.1.0`
 
 ## 安全控制层（Authority & Safety Kernel）
 
@@ -52,11 +78,15 @@ Yu v0.0.2.1 建立独立于 LLM 的控制层（Control Plane）：Owner 身份�
 
 ## 运行
 
+持续语音（待真实 Key/麦克风验收）：PowerShell 7 执行 `./start-voice.ps1`，隐藏输入北京地域百炼 Key，
+访问脚本提示地址。点击一次“开始语音”后持续识别、自动断句执行，无需编辑或发送；可随时结束。
+监听期间音频持续发送至阿里云并按服务规则计费。详见 [中国大陆语音接入说明](docs/voice-china.md)。
+
 ```bash
 python -m yu.cli
 ```
 
-本地命令：记住：/ 记忆 / 目标 / 任务 / 项目 / 决策 / 规划 / 总结 / 日报 / 电脑状态 / 权限 / 安全状态 / 审计 / 重置 / exit（或 关闭Yu）。对话功能需要设置环境变量 `DEEPSEEK_API_KEY`；可选 `DEEPSEEK_MODEL`（默认 deepseek-chat）、`DEEPSEEK_BASE_URL`、`YU_LLM_PROVIDER`（默认 deepseek）。对话时会自动检索相关长期记忆并注入上下文（v0.0.3）。可选 DEEPSEEK_TEMPERATURE（默认 0.3，越低越忠实于记忆、越少编造）。未设置 Key 时仅本地命令可用。
+本地命令：记住：/ 记忆 / 目标 / 任务 / 项目 / 决策 / 规划 / 总结 / 日报 / 电脑状态 / 权限 / 安全状态 / 审计 / 重置 / `打开QQ音乐` / `打开下载文件夹` / exit（或 关闭Yu）。对话功能需要设置环境变量 `DEEPSEEK_API_KEY`；可选 `DEEPSEEK_MODEL`（默认 deepseek-chat）、`DEEPSEEK_BASE_URL`、`YU_LLM_PROVIDER`（默认 deepseek）。对话时会自动检索相关长期记忆并注入上下文（v0.0.3）。可选 DEEPSEEK_TEMPERATURE（默认 0.3，越低越忠实于记忆、越少编造）。未设置 Key 时，明确 Action 仍走本地 Router，但执行权限仍需显式授予。
 
 ## Yu Web（v0.0.8 Web Experience）
 

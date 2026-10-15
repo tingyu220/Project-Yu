@@ -9,6 +9,7 @@ import type {
   StatusResponse,
   SystemStatusResponse,
   TodayResponse,
+  ConversationTurn,
 } from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -44,6 +45,8 @@ export interface MemoryWriteResponse {
 }
 
 export const api = {
+  conversation: () => get<{session_id: string}>("/api/conversation"),
+  conversationChanges: (after: number, signal?: AbortSignal) => request<{turns: ConversationTurn[]; next_cursor: number; has_more: boolean}>("/api/conversation/turns?after=" + after, {signal}),
   status: () => get<StatusResponse>("/api/status"),
   today: () => get<TodayResponse>("/api/today"),
   memories: (limit = 150) =>
@@ -58,6 +61,6 @@ export const api = {
     post<MemoryWriteResponse>("/api/memories/" + id + "/update", { content }),
   archiveMemory: (id: number) =>
     post<MemoryWriteResponse>("/api/memories/" + id + "/archive", {}),
-  chat: (message: string, history: HistoryMessage[] = [], referencedMemoryIds: number[] = []) =>
-    post<ChatResponse>("/api/chat", { message, history, referenced_memory_ids: referencedMemoryIds }),
+  chat: (message: string, history: HistoryMessage[] = [], referencedMemoryIds?: number[], sessionId?: string, requestId?: string, source: "web" | "local_voice" = "web") =>
+    post<ChatResponse>("/api/chat", { message, history, referenced_memory_ids: referencedMemoryIds, session_id: sessionId, request_id: requestId, source }),
 };

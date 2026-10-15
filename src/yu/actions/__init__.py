@@ -1,5 +1,5 @@
-"""Yu Action 域 — ProposedAction（LLM 只能提出，不能直接执行）。"""
+"""Yu Action 域 — 提议、决策与执行结果。"""
 
-from .models import ActionDecision, ProposedAction
+from .models import ActionDecision, ActionResult, ProposedAction
 
-__all__ = ["ActionDecision", "ProposedAction"]
+__all__ = ["ActionDecision", "ActionResult", "ProposedAction"]

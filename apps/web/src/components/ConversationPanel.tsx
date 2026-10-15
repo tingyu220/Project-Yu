@@ -1,6 +1,7 @@
 import type { Message, YuUIState } from "../lib/types";
 import Composer from "./Composer";
 import MessageList from "./MessageList";
+import type { LiveVoice } from "../lib/useLiveVoice";
 
 interface ConversationPanelProps {
   messages: Message[];
@@ -9,6 +10,7 @@ interface ConversationPanelProps {
   reduced: boolean;
   mask: (s: string) => string;
   onSubmit: (text: string) => void;
+  voice: LiveVoice;
 }
 
 const STATE_LABEL: Record<YuUIState, string> = {
@@ -22,7 +24,7 @@ const STATE_LABEL: Record<YuUIState, string> = {
   error: "ERROR",
 };
 
-export default function ConversationPanel({ messages, uiState, busy, reduced, mask, onSubmit }: ConversationPanelProps) {
+export default function ConversationPanel({ messages, uiState, busy, reduced, mask, onSubmit, voice }: ConversationPanelProps) {
   const dot = uiState === "error" ? "foot__dot--off" : "foot__dot--ok";
 
   return (
@@ -34,9 +36,9 @@ export default function ConversationPanel({ messages, uiState, busy, reduced, ma
           {STATE_LABEL[uiState]}
         </span>
       </header>
-      <MessageList messages={messages} busy={busy} reduced={reduced} mask={mask} />
+      <MessageList messages={messages} busy={busy} reduced={reduced} mask={mask} voiceActive={voice.phase !== "idle"} />
       <div className="conversation-panel__composer">
-        <Composer onSubmit={onSubmit} busy={busy} />
+        <Composer onSubmit={onSubmit} busy={busy} voice={voice} />
       </div>
     </section>
   );

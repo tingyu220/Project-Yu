@@ -139,6 +139,23 @@ export interface ChatResponse {
   memory_claims?: MemoryClaim[];
   memory_correction?: string;
   memory_probe?: boolean;
+  session_id?: string;
+  request_id?: string;
+  seq?: number;
+  state?: string;
+}
+
+export interface ConversationTurn {
+  seq: number;
+  session_id: string;
+  request_id: string;
+  source: "web" | "local_voice";
+  message: string;
+  state: string;
+  created_at: string;
+  completed_at: string | null;
+  result: ChatResponse | null;
+  revision: number;
 }
 
 export interface HistoryMessage {
