@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import os
+import asyncio
 
 import pytest
 
@@ -107,7 +108,7 @@ def test_chat_memory_injects_context_with_provider():
     fp = FakeProvider()
     ctx.provider = fp
     try:
-        r = api_app._chat_memory(ctx, "你好", [])
+        r = asyncio.run(api_app._chat_memory(ctx, "你好", []))
     finally:
         ctx.close()
 
@@ -148,7 +149,7 @@ def test_chat_memory_probe_no_evidence(tmp_path):
 
     ctx = _FakeCtx(MemoryStore(tmp_path / "m.db"), AuditStore(tmp_path / "a.db"), provider=None)
     try:
-        r = api_app._chat_memory(ctx, "我以前说过我膝盖疼吗？", [])
+        r = asyncio.run(api_app._chat_memory(ctx, "我以前说过我膝盖疼吗？", []))
     finally:
         ctx.memory.close()
         ctx.audit.close()
@@ -167,7 +168,7 @@ def test_chat_memory_correction_flow(tmp_path):
     ctx = _FakeCtx(MemoryStore(tmp_path / "m.db"), AuditStore(tmp_path / "a.db"), provider=None)
     try:
         ctx.memory.add_user_memory("fact", "用户膝盖疼")
-        r = api_app._chat_memory(ctx, "我没说过膝盖疼。", [])
+        r = asyncio.run(api_app._chat_memory(ctx, "我没说过膝盖疼。", []))
     finally:
         ctx.memory.close()
         ctx.audit.close()
@@ -191,7 +192,7 @@ def test_chat_memory_guard_flags_unsupported_claim(tmp_path):
 
     ctx = _FakeCtx(MemoryStore(tmp_path / "m.db"), AuditStore(tmp_path / "a.db"), provider=FakeProvider())
     try:
-        r = api_app._chat_memory(ctx, "我要去爬山，给我建议。", [])
+        r = asyncio.run(api_app._chat_memory(ctx, "我要去爬山，给我建议。", []))
         audit_events = ctx.audit.list_recent(50)
     finally:
         ctx.memory.close()

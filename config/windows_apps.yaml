@@ -1,0 +1,28 @@
+# auto_discover 仅对明确支持的应用查询 Windows 安装登记，升级后自动重新定位。
+apps:
+  qq_music:
+    display_name: QQ音乐
+    aliases:
+      - QQ音乐
+      - QQ Music
+    auto_discover: true
+    executable: ""
+  weixin:
+    display_name: 微信
+    aliases:
+      - 微信
+      - Weixin
+      - WeChat
+    auto_discover: true
+    executable: ""
+  chrome:
+    display_name: Google Chrome
+    aliases:
+      - Chrome
+      - 谷歌浏览器
+    executable: "C:/Program Files/Google/Chrome/Application/chrome.exe"
+  obsidian:
+    display_name: Obsidian
+    aliases:
+      - Obsidian
+    executable: ""

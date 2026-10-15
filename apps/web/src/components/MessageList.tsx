@@ -8,9 +8,10 @@ interface MessageListProps {
   busy: boolean;
   reduced: boolean;
   mask: (s: string) => string;
+  voiceActive?: boolean;
 }
 
-export default function MessageList({ messages, busy, reduced, mask }: MessageListProps) {
+export default function MessageList({ messages, busy, reduced, mask, voiceActive = false }: MessageListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [autoFollow, setAutoFollow] = useState(true);
 
@@ -54,7 +55,7 @@ export default function MessageList({ messages, busy, reduced, mask }: MessageLi
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.55, ease: [0.22, 0.61, 0.36, 1] }}
               >
-                <YuMessage message={m} mask={mask} />
+                <YuMessage message={m} mask={mask} voiceActive={voiceActive} />
               </motion.div>
             ),
           )}

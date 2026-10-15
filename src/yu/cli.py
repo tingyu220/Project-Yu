@@ -28,6 +28,7 @@ import os
 
 from . import __version__
 from .actions.models import ProposedAction
+from .actions.service import build_action_service
 from .audit.store import AuditStore
 from .computer import build_computer_advice, format_status, is_computer_request, read_computer_status
 from .authority.owner import OwnerManager
@@ -92,6 +93,7 @@ def main(argv: list[str] | None = None) -> int:
     owner_id = owner.owner.owner_id if owner.owner is not None else "unknown"
     permissions = PermissionEngine(owner_id, audit)
     kernel = SafetyKernel(constitution, permissions, owner, audit)
+    action_service = build_action_service(kernel, audit)
     shutdown = ShutdownController(audit)
     provider = _build_provider()
     conversation = Conversation()
@@ -150,15 +152,19 @@ def main(argv: list[str] | None = None) -> int:
             elif command in ("电脑状态", "系统状态"):
                 _computer_status(kernel, provider)
             else:
-                intent = detect_memory_intent(command)
-                if intent is not None:
-                    _memory_command(store, audit, intent, last_ref)
-                elif is_plan_request(command):
-                    _plan(store, entities, provider)
-                elif is_computer_request(command):
-                    _computer_status(kernel, provider)
+                action_result = action_service.handle(command)
+                if action_result is not None:
+                    print(action_result.message)
                 else:
-                    _chat(store, provider, conversation, command, audit, last_ref)
+                    intent = detect_memory_intent(command)
+                    if intent is not None:
+                        _memory_command(store, audit, intent, last_ref)
+                    elif is_plan_request(command):
+                        _plan(store, entities, provider)
+                    elif is_computer_request(command):
+                        _computer_status(kernel, provider)
+                    else:
+                        _chat(store, provider, conversation, command, audit, last_ref)
     finally:
         store.close()
         entities.close()

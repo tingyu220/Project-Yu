@@ -12,12 +12,14 @@
 
 注意：端点均为 async def，使 SQLite 访问保持在 lifespan 所在的事件循环线程
 （Yu Core 的 SQLite 连接默认 check_same_thread=True）；本地单用户场景下，
-阻塞式 LLM/psutil 调用短暂占用事件循环可接受。
+LLM/psutil/系统执行在工作线程运行，避免阻塞持续语音 WebSocket。
 """
 
 from __future__ import annotations
 
 import os
+import asyncio
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -60,9 +62,14 @@ from ..memory.router import (
     detect_memory_intent,
 )
 from ..memory.service import MemoryService
-from ..planner import build_plan, is_plan_request
+from ..planner import gather_context, PLANNER_SYSTEM_PROMPT, is_plan_request
 from .context import AppContext, build_context
-from .schemas import ChatRequest, MemoryCreateRequest, MemoryQueryRequest, MemoryUpdateRequest
+from .voice import voice_router
+from .voice_control import voice_control_router
+from .capabilities import describe_capabilities, is_capability_question
+from .schemas import ChatRequest, HistoryMessage, MemoryCreateRequest, MemoryQueryRequest, MemoryUpdateRequest
+from ..conversation.store import ConversationStore
+from ..conversation.service import ConversationService, SessionConflict, QueueCapacityError
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _DEFAULT_DIST = _REPO_ROOT / "apps" / "web" / "dist"
@@ -141,19 +148,24 @@ def _top_priority(ctx: AppContext) -> dict[str, Any] | None:
 
 # ------------------------------------------------------------------ chat helpers
 
-def _chat_plan(ctx: AppContext, message: str) -> dict[str, Any]:
+async def _chat_plan(ctx: AppContext, message: str) -> dict[str, Any]:
     if ctx.provider is None:
         return _reply("plan", "未配置 LLM Provider（缺少 DEEPSEEK_API_KEY），无法规划。")
     if not ctx.entities.list_goals() and not ctx.entities.list_tasks() and not ctx.entities.list_projects():
         return _reply("plan", "暂无目标 / 任务 / 项目。请先用 目标：/ 任务：/ 项目： 记录一些，再让我规划。")
     try:
-        plan = build_plan(ctx.memory, ctx.entities, ctx.provider)
+        data = gather_context(ctx.memory, ctx.entities)
+        response = await asyncio.to_thread(ctx.provider.chat, [
+            ChatMessage(role="system", content=PLANNER_SYSTEM_PROMPT),
+            ChatMessage(role="user", content=data),
+        ])
+        plan = response.content
     except LLMError as e:
         return _reply("error", f"[错误] {e}", reason=str(e))
     return _reply("plan", plan)
 
 
-def _chat_computer(ctx: AppContext, message: str) -> dict[str, Any]:
+async def _chat_computer(ctx: AppContext, message: str) -> dict[str, Any]:
     action = ProposedAction(
         action_id="api-chat-computer",
         action_type="system.status.read",
@@ -166,11 +178,11 @@ def _chat_computer(ctx: AppContext, message: str) -> dict[str, Any]:
     decision = ctx.kernel.evaluate(action)
     if not decision.allowed:
         return _reply("computer", f"[拒绝] {decision.reason}", allowed=False, reason=decision.reason)
-    status = read_computer_status()
+    status = await asyncio.to_thread(read_computer_status)
     if ctx.provider is None:
         return _reply("computer", format_status(status))
     try:
-        advice = build_computer_advice(ctx.provider, status)
+        advice = await asyncio.to_thread(build_computer_advice, ctx.provider, status)
     except LLMError as e:
         return _reply("error", f"[错误] {e}", reason=str(e))
     return _reply("computer", advice)
@@ -212,7 +224,7 @@ def _format_retrieval_list(matches: list[Any]) -> str:
     return "\n".join(f"[{m.id}] {m.content}" for m, _ in matches)
 
 
-def _chat_memory_command(ctx: AppContext, intent, referenced_ids: list[int]) -> dict[str, Any]:
+async def _chat_memory_command(ctx: AppContext, intent, referenced_ids: list[int]) -> dict[str, Any]:
     """Explicit Memory Command -> MemoryService（确定性，不依赖 LLM）。"""
     service = MemoryService(ctx.memory, ctx.audit)
     kind = intent.intent
@@ -264,10 +276,10 @@ def _chat_memory_command(ctx: AppContext, intent, referenced_ids: list[int]) -> 
             retrieved=retrieved, intent=MEMORY_SEARCH,
         )
 
-    return _chat_memory(ctx, intent.payload, [])
+    return await _chat_memory(ctx, intent.payload, [])
 
 
-def _chat_memory(ctx: AppContext, message: str, history: list[Any]) -> dict[str, Any]:
+async def _chat_memory(ctx: AppContext, message: str, history: list[Any]) -> dict[str, Any]:
     """默认对话：检索长期记忆 -> 注入上下文 -> 经 Yu Core 调用 LLM。"""
     # 1. 用户纠正错误记忆（Correction Flow）。
     if is_correction(message):
@@ -310,7 +322,7 @@ def _chat_memory(ctx: AppContext, message: str, history: list[Any]) -> dict[str,
         memory_debug_emit(FINAL_LLM_CONTEXT=context_text or "(no memory context)")
 
     try:
-        reply = ctx.provider.chat(request_messages)
+        reply = await asyncio.to_thread(ctx.provider.chat, request_messages)
     except LLMError as e:
         return _reply("error", f"[错误] {e}", retrieved=retrieved, reason=str(e))
 
@@ -341,10 +353,13 @@ def _reply(
     memory_probe: bool = False,
     intent: str = "",
     memory_result: dict[str, Any] | None = None,
+    action: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "kind": kind,
+        "type": kind,
         "reply": reply,
+        "content": reply,
         "retrieved": retrieved or [],
         "allowed": allowed,
         "reason": reason,
@@ -353,7 +368,30 @@ def _reply(
         "memory_probe": memory_probe,
         "intent": intent,
         "memory_result": memory_result,
+        "action": action,
     }
+
+
+async def _chat_action(ctx: AppContext, message: str) -> dict[str, Any] | None:
+    """确定性动作优先于 Planner / LLM。"""
+    result = await ctx.action_service.handle_async(message)
+    if result is None:
+        return None
+    action = {
+        "action_id": result.action_id,
+        "action_type": result.action_type,
+        "success": result.success,
+        "message": result.message,
+        "target": result.target,
+        "error_code": result.error_code,
+    }
+    return _reply(
+        "action",
+        result.message,
+        allowed=result.success,
+        reason=result.error_code or "",
+        action=action,
+    )
 
 
 # ------------------------------------------------------------------ app
@@ -381,12 +419,33 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.ctx = build_context()
+        from . import context as context_module
+        store = ConversationStore(context_module.DEFAULT_DB_PATH)
+        async def handler(message, history, references):
+            ctx = app.state.ctx
+            action_reply = await _chat_action(ctx, message)
+            if action_reply is not None:
+                return action_reply
+            if is_capability_question(message):
+                return _reply("chat", describe_capabilities(ctx))
+            intent = detect_memory_intent(message)
+            if intent is not None:
+                return await _chat_memory_command(ctx, intent, references)
+            if is_plan_request(message):
+                return await _chat_plan(ctx, message)
+            if is_computer_request(message):
+                return await _chat_computer(ctx, message)
+            return await _chat_memory(ctx, message, [HistoryMessage(**m) for m in history])
+        app.state.conversation = ConversationService(store, handler)
         try:
             yield
         finally:
+            await app.state.conversation.close()
             app.state.ctx.close()
 
     app = FastAPI(title="Yu API", version=__version__, lifespan=lifespan)
+    app.include_router(voice_router())
+    app.include_router(voice_control_router())
 
     app.add_middleware(
         CORSMiddleware,
@@ -520,28 +579,46 @@ def create_app() -> FastAPI:
         decision = ctx.kernel.evaluate(action)
         if not decision.allowed:
             return {"allowed": False, "reason": decision.reason, "status": None}
-        s = read_computer_status()
+        s = await asyncio.to_thread(read_computer_status)
         return {"allowed": True, "reason": decision.reason, "status": s.__dict__}
 
     # ------------------------------------------------------------------ chat
 
+    @app.get("/api/conversation")
+    async def conversation(request: Request):
+        return {"session_id": request.app.state.conversation.store.default_session()}
+
+    @app.get("/api/conversation/turns")
+    async def conversation_turns(request: Request, after: int = 0):
+        if after < 0:
+            raise HTTPException(400, "游标不能为负数")
+        return request.app.state.conversation.store.changes(after)
+
+    @app.get("/api/conversation/requests/{request_id}")
+    async def conversation_receipt(request: Request, request_id: str):
+        store = request.app.state.conversation.store
+        turn = store.get_request(store.default_session(), request_id)
+        if turn is None:
+            raise HTTPException(404, "没有该请求回执")
+        return store._serialize(turn)
+
     @app.post("/api/chat")
     async def chat(request: Request, body: ChatRequest) -> dict[str, Any]:
-        ctx = _ctx(request)
         message = body.message.strip()
         if not message:
             raise HTTPException(status_code=400, detail="message 不能为空")
 
-        # 1. Explicit Memory Command 优先（Explicit Intent > Inferred Routing）。
-        intent = detect_memory_intent(message)
-        if intent is not None:
-            return _chat_memory_command(ctx, intent, body.referenced_memory_ids)
-
-        if is_plan_request(message):
-            return _chat_plan(ctx, message)
-        if is_computer_request(message):
-            return _chat_computer(ctx, message)
-        return _chat_memory(ctx, message, body.history)
+        service = request.app.state.conversation
+        session_id = service.store.default_session()
+        if body.session_id is not None and body.session_id != session_id:
+            raise HTTPException(404, "没有该会话")
+        try:
+            return await service.submit(session_id, body.request_id or str(uuid.uuid4()),
+                                        body.source, message, body.referenced_memory_ids)
+        except SessionConflict as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except QueueCapacityError as exc:
+            raise HTTPException(429, str(exc)) from exc
 
     _mount_spa(app)
     return app

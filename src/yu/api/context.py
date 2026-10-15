@@ -11,6 +11,7 @@ import os
 from dataclasses import dataclass
 
 from ..audit.store import AuditStore
+from ..actions.service import ActionService, build_action_service
 from ..authority.owner import OwnerManager
 from ..daily import DailyLogStore
 from ..entities.store import EntitiesStore
@@ -24,6 +25,7 @@ DEFAULT_DB_PATH = os.environ.get("YU_DB_PATH", "data/yu.db")
 DEFAULT_AUDIT_DB = os.environ.get("YU_AUDIT_DB", "data/audit.db")
 DEFAULT_CONSTITUTION_PATH = os.environ.get("YU_CONSTITUTION_PATH", "config/safety_constitution.yaml")
 DEFAULT_OWNER_PATH = os.environ.get("YU_OWNER_PATH", "config/owner.yaml")
+DEFAULT_ACTION_CONFIG_DIR = os.environ.get("YU_ACTION_CONFIG_DIR", "config")
 
 
 @dataclass
@@ -38,6 +40,7 @@ class AppContext:
     constitution: SafetyConstitution
     permissions: PermissionEngine
     kernel: SafetyKernel
+    action_service: ActionService
     provider: LLMProvider | None
     provider_error: str | None
 
@@ -59,6 +62,7 @@ def build_context() -> AppContext:
     owner_id = owner.owner.owner_id if owner.owner is not None else "unknown"
     permissions = PermissionEngine(owner_id, audit)
     kernel = SafetyKernel(constitution, permissions, owner, audit)
+    action_service = build_action_service(kernel, audit, DEFAULT_ACTION_CONFIG_DIR)
 
     provider: LLMProvider | None = None
     provider_error: str | None = None
@@ -76,6 +80,7 @@ def build_context() -> AppContext:
         constitution=constitution,
         permissions=permissions,
         kernel=kernel,
+        action_service=action_service,
         provider=provider,
         provider_error=provider_error,
     )

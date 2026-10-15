@@ -10,6 +10,7 @@ import { usePresentation } from "../lib/presentation";
 import { useReducedMotion } from "../lib/useReducedMotion";
 import type { StatusResponse, SystemStatusResponse, TodayResponse } from "../lib/types";
 import { useConversation } from "../lib/useConversation";
+import { useLiveVoice } from "../lib/useLiveVoice";
 
 const DAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
@@ -33,6 +34,9 @@ export default function Cockpit() {
     api.today().then(setToday).catch(() => {});
   }, []);
   const conv = useConversation(reduced, refreshToday);
+  // 会话放在稳定父组件，首句触发布局切换时不关闭麦克风。
+  const voice = useLiveVoice(conv.submit);
+  const submitText = (text: string) => { void conv.submit(text).catch(() => {}); };
 
   const [today, setToday] = useState<TodayResponse | null>(null);
   const [status, setStatus] = useState<StatusResponse | null>(null);
@@ -108,7 +112,7 @@ export default function Cockpit() {
           {err && <div className="state-msg">无法连接 Yu API：{err}</div>}
 
           <div className="idle-composer">
-            <Composer onSubmit={conv.submit} busy={conv.busy} showHint />
+            <Composer onSubmit={submitText} busy={conv.busy} voice={voice} showHint />
           </div>
 
           <footer className="foot">
@@ -144,7 +148,8 @@ export default function Cockpit() {
           busy={conv.busy}
           reduced={reduced}
           mask={mask}
-          onSubmit={conv.submit}
+          onSubmit={submitText}
+          voice={voice}
         />
       </motion.div>
     </main>

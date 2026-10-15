@@ -1,0 +1,12 @@
+# 首次允许 Windows 桌面应用访问麦克风；此配置不存放密钥。
+keyword: 嘿，宇
+model_dir: models/wake
+device: null
+sample_rate: 16000
+channels: 1
+frame_ms: 100
+queue_frames: 20
+idle_seconds: 30
+max_session_seconds: 600
+cooldown_seconds: 1
+threshold: 0.25
